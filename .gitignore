@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+public/tailwind.css
+
+# Wrangler / local dev (miniflare state, local D1)
+.wrangler/
+.dev.vars
+
+# Fiberplane local issue tracking
+.fp/

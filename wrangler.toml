@@ -1,0 +1,21 @@
+# RentLens — Cloudflare Workers config
+# Local dev (`npm run dev` = `wrangler dev`) runs fully local: miniflare + a
+# local D1. No Cloudflare login needed until Phase 6 (deploy + real D1).
+name = "rentlens"
+main = "src/index.tsx"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Static assets (compiled tailwind.css, HTMX, icons). Served for matching
+# paths first; everything else falls through to the Hono Worker.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# D1 (SQLite). database_id is a placeholder for local dev; replace with the
+# real id from `wrangler d1 create rentlens` in Phase 6.
+[[d1_databases]]
+binding = "DB"
+database_name = "rentlens"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"

@@ -1,0 +1,24 @@
+{
+  "name": "rentlens-cf",
+  "version": "0.0.0",
+  "private": true,
+  "description": "RentLens — Cloudflare-native (Workers + Hono + hono/jsx + D1)",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build:css": "tailwindcss -i ./src/styles/input.css -o ./public/tailwind.css --minify",
+    "css": "tailwindcss -i ./src/styles/input.css -o ./public/tailwind.css --watch",
+    "build": "npm run build:css",
+    "deploy": "npm run build:css && wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.0.0",
+    "@cloudflare/workers-types": "^4.20240909.0"
+  }
+}
