@@ -10,6 +10,9 @@ import { MoverResults } from "./views/components/mover-results";
 import { listFeatured, filterFeatured, search, getBySlug } from "./data/society";
 import { societyDetailBySlug } from "./data/society-detail";
 import { Contact, ContactSuccess } from "./views/pages/contact";
+import { HowItWorks } from "./views/pages/how-it-works";
+import { Privacy } from "./views/pages/privacy";
+import { Terms } from "./views/pages/terms";
 import { searchAreas } from "./data/area";
 import { searchMovers } from "./data/mover";
 import { insertContact } from "./data/contact";
@@ -151,6 +154,11 @@ app.get("/submit/success", async (c) => {
   }
   return c.html(<SubmitSuccess sub={sub} />);
 });
+
+// ---- Static content pages ----
+app.get("/how-it-works", (c) => c.html(<HowItWorks />));
+app.get("/privacy", (c) => c.html(<Privacy />));
+app.get("/terms", (c) => c.html(<Terms />));
 
 // ---- Contact ----
 app.get("/contact", (c) => c.html(<Contact data={emptyContact()} errors={{}} />));
