@@ -1,7 +1,10 @@
 import { Hono } from "hono";
+import { Layout } from "./views/layout";
+import { Header } from "./views/components/header";
+import { Footer } from "./views/components/footer";
 
 // Worker bindings (see wrangler.toml). DB is the D1 (SQLite) database;
-// ASSETS serves files from public/ (compiled tailwind.css, HTMX, icons).
+// ASSETS serves files from public/ (compiled tailwind.css, icons, manifest).
 export type Bindings = {
   DB: D1Database;
   ASSETS: Fetcher;
@@ -11,29 +14,33 @@ const app = new Hono<{ Bindings: Bindings }>();
 
 app.get("/", (c) => {
   return c.html(
-    <html lang="en">
-      <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>RentLens.</title>
-        <link rel="stylesheet" href="/tailwind.css" />
-      </head>
-      <body class="min-h-screen flex items-center justify-center font-sans">
-        <main class="text-center">
-          <h1 class="text-3xl font-semibold">
-            RentLens<span class="text-amber-500">.</span>
-          </h1>
-          <p class="mt-2 text-sm text-neutral-500">
-            Cloudflare-native scaffold — Phase 0 green.
-          </p>
-        </main>
-      </body>
-    </html>,
+    <Layout
+      meta={{
+        title: "RentLens. — real rents from real residents",
+        description:
+          "Real rents from real residents — apartment-society rental intelligence for Bengaluru.",
+        path: "/",
+      }}
+    >
+      <Header />
+      <main class="max-w-wide mx-auto px-5 sm:px-8 py-16 sm:py-24">
+        <p class="eyebrow">Bengaluru · v0.1</p>
+        <h1 class="display text-[var(--text-display-xxl)] font-light tracking-display leading-[0.98] mt-4">
+          Real rents from
+          <br />
+          real residents<span class="text-marigold">.</span>
+        </h1>
+        <p class="mt-6 max-w-narrow text-ink-mute text-[var(--text-body-lg)] leading-relaxed">
+          Phase 1 — design system + base layout ported. Parchment, ink, marigold;
+          Geist + JetBrains Mono. Read pages land in Phase 3.
+        </p>
+      </main>
+      <Footer />
+    </Layout>,
   );
 });
 
-// Liveness probe — also proves the D1 binding is wired (Phase 0: schema is
-// empty, so we just confirm the binding answers a trivial query).
+// Liveness probe — also confirms the D1 binding answers a trivial query.
 app.get("/healthz", async (c) => {
   const row = await c.env.DB.prepare("SELECT 1 AS ok").first<{ ok: number }>();
   return c.json({ status: "ok", db: row?.ok === 1 });

@@ -1,0 +1,320 @@
+/* =============================================================
+   Society Rental Intelligence — Design Tokens
+   Canonical source for color, type, spacing, radius, motion.
+   Mirrored in tailwind-config.js for utility classes.
+   ============================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* --------- Color ---------
+     Warm ground + deep ink + single saturated accent.
+     Use marigold sparingly — at most one or two points per view. */
+  --color-parchment:        #F7F2EB;
+  --color-parchment-deep:   #EDE5D6;
+  --color-white:            #FFFFFF;
+  --color-ink:              #1A1F26;
+  --color-ink-mute:         #4A5260;
+  --color-ink-faint:        #8A8F99;
+  --color-marigold:         #D4811F;
+  --color-marigold-deep:    #B36A14;
+  --color-hairline:         #D4CDC0;
+  --color-hairline-strong:  #B8AE9C;
+  --color-danger:           #B8362B;
+  --color-danger-deep:      #94251C;
+  --color-success:          #3D7B5C;
+
+  /* Semantic aliases — use these in components for intent clarity */
+  --surface-base:           var(--color-parchment);
+  --surface-raised:         var(--color-white);
+  --surface-sunken:         var(--color-parchment-deep);
+  --surface-inverse:        var(--color-ink);
+
+  --text-primary:           var(--color-ink);
+  --text-secondary:         var(--color-ink-mute);
+  --text-tertiary:          var(--color-ink-faint);
+  --text-inverse:           var(--color-parchment);
+  --text-accent:            var(--color-marigold);
+
+  --border-subtle:          var(--color-hairline);
+  --border-strong:          var(--color-hairline-strong);
+
+  --accent:                 var(--color-marigold);
+  --accent-deep:            var(--color-marigold-deep);
+
+  /* --------- Type --------- */
+  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+
+  /* Type scale (mobile-first; large screens use Tailwind sm:/md:/lg: */
+  --text-display-xxl: clamp(44px, 8.5vw, 108px);  /* hero h1 */
+  --text-display-xl:  clamp(32px, 5vw, 60px);     /* CTA h2 */
+  --text-display-lg:  clamp(28px, 4vw, 48px);     /* section h2 */
+  --text-display-md:  clamp(22px, 3vw, 36px);     /* sub-section h2 */
+  --text-display-sm:  20px;                       /* h3 */
+  --text-body-lg:     18px;
+  --text-body:        16px;
+  --text-body-sm:     14px;
+  --text-caption:     12px;
+  --text-micro:       11px;                       /* eyebrow */
+
+  /* Tracking */
+  --tracking-tightest:  -0.04em;
+  --tracking-tighter:   -0.025em;
+  --tracking-display:   -0.035em;
+  --tracking-normal:    0;
+  --tracking-eyebrow:   0.14em;
+
+  /* Line heights */
+  --leading-tight:      0.98;
+  --leading-snug:       1.15;
+  --leading-normal:     1.5;
+  --leading-relaxed:    1.62;
+
+  /* Weights */
+  --weight-light:       300;
+  --weight-regular:     400;
+  --weight-medium:      500;
+  --weight-semibold:    600;
+
+  /* --------- Spacing scale --------- */
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:   12px;
+  --space-4:   16px;
+  --space-5:   20px;
+  --space-6:   24px;
+  --space-7:   28px;
+  --space-8:   32px;
+  --space-10:  40px;
+  --space-12:  48px;
+  --space-14:  56px;
+  --space-16:  64px;
+  --space-20:  80px;
+  --space-24:  96px;
+  --space-32:  128px;
+
+  /* --------- Radius ---------
+     Intentionally restrained — square containers, only inputs/buttons softened */
+  --radius-none:  0;
+  --radius-sm:    2px;
+  --radius-md:    4px;
+  --radius-lg:    8px;
+  --radius-pill:  9999px;
+
+  /* --------- Shadow --------- */
+  --shadow-card-hover:    0 14px 32px -10px rgba(26, 31, 38, 0.14);
+  --shadow-card-resting:  0 1px 2px rgba(26, 31, 38, 0.04);
+  --shadow-search-focus:  0 0 0 4px rgba(212, 129, 31, 0.12);
+  --shadow-overlay:       0 24px 48px -12px rgba(26, 31, 38, 0.20);
+
+  /* --------- Motion --------- */
+  --ease-out-expo:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart:   cubic-bezier(0.25, 1, 0.5, 1);
+  --duration-fast:    160ms;
+  --duration-base:    240ms;
+  --duration-slow:    900ms;
+
+  /* --------- Layout containers --------- */
+  --container-narrow:  900px;
+  --container-base:    1100px;
+  --container-wide:    1400px;
+  --gutter-mobile:     20px;
+  --gutter-base:       32px;
+}
+
+/* =============================================================
+   Base body
+   ============================================================= */
+html, body {
+  font-family: var(--font-sans);
+  background: var(--surface-base);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle paper grain — fixed overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle at 1px 1px, rgba(26, 31, 38, 0.025) 1px, transparent 0);
+  background-size: 3px 3px;
+  z-index: 1;
+}
+main, header, footer, section { position: relative; z-index: 2; }
+
+/* =============================================================
+   Typography utilities — distinctive helpers
+   ============================================================= */
+.display {
+  font-family: var(--font-sans);
+  letter-spacing: var(--tracking-display);
+}
+.emph        { font-weight: var(--weight-semibold); color: var(--text-primary); }
+.emph-accent { font-weight: var(--weight-semibold); color: var(--text-accent); }
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* =============================================================
+   Primitives — dividers
+   ============================================================= */
+.hairline      { height: 1px; background: var(--border-subtle); }
+.hairline-v    { width: 1px;  background: var(--border-subtle); }
+
+/* =============================================================
+   Animation — staggered rise on load
+   ============================================================= */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.rise   { animation: rise var(--duration-slow) var(--ease-out-expo) both; }
+.rise-1 { animation-delay:  60ms; }
+.rise-2 { animation-delay: 180ms; }
+.rise-3 { animation-delay: 300ms; }
+.rise-4 { animation-delay: 420ms; }
+.rise-5 { animation-delay: 540ms; }
+.rise-6 { animation-delay: 660ms; }
+
+/* Pulsing accent dot — used at most once per view */
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1);   opacity: 1; }
+  50%      { transform: scale(1.5); opacity: 0.55; }
+}
+.accent-dot { animation: pulse-dot 2.6s ease-in-out infinite; }
+
+/* =============================================================
+   Interactive primitives
+   ============================================================= */
+
+/* Card elevation lift on hover */
+.card-elev {
+  transition: transform var(--duration-base) var(--ease-out-expo),
+              box-shadow var(--duration-base),
+              border-color var(--duration-base);
+}
+.card-elev:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--border-strong);
+}
+
+/* Filter pill — used in pill groups */
+.pill {
+  transition: background var(--duration-fast) ease,
+              color var(--duration-fast) ease,
+              border-color var(--duration-fast) ease;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.pill:not(.is-active):hover { background: var(--surface-sunken); }
+
+/* Underline-on-hover link */
+.link-u { position: relative; }
+.link-u::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 0;
+  height: 1px;
+  background: currentColor;
+  transition: width var(--duration-base) var(--ease-out-expo);
+}
+.link-u:hover::after { width: 100%; }
+
+/* Search input shell */
+.search-shell {
+  transition: box-shadow 200ms, border-color 200ms;
+}
+.search-shell:focus-within {
+  box-shadow: var(--shadow-search-focus);
+  border-color: var(--accent);
+}
+
+/* Horizontal scroll container for card rows */
+.cards-scroll::-webkit-scrollbar { height: 6px; }
+.cards-scroll::-webkit-scrollbar-track { background: transparent; }
+.cards-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 3px;
+}
+.cards-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+
+/* =============================================================
+   Number input: kill the spinner buttons. Trackpads catch the
+   tiny up/down arrows and bump values accidentally.
+   ============================================================= */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* =============================================================
+   5-star rating widget. Inputs and labels are siblings in
+   reverse DOM order; flex-row-reverse puts them visually 1→5.
+   `:checked ~ label` then fills earlier-visual stars. Hover
+   uses the same sibling combinator and supersedes the checked
+   state while the user is hovering.
+   ============================================================= */
+.rating-row {
+  display: inline-flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.rating-row input[type="radio"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.rating-row label {
+  display: inline-flex;
+  color: var(--color-ink-faint);
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+.rating-row label:hover,
+.rating-row label:hover ~ label,
+.rating-row input[type="radio"]:checked ~ label {
+  color: var(--color-marigold);
+}
+/* While hovering anywhere in the row, override the checked-derived
+   fill so the hover preview is unambiguous. */
+.rating-row:hover input[type="radio"]:checked ~ label {
+  color: var(--color-ink-faint);
+}
+.rating-row:hover label:hover,
+.rating-row:hover label:hover ~ label {
+  color: var(--color-marigold);
+}
+/* Keyboard focus indicator on the active label (since the inputs
+   are visually hidden). */
+.rating-row input[type="radio"]:focus-visible ~ label {
+  outline: 2px solid var(--color-marigold);
+  outline-offset: 2px;
+}

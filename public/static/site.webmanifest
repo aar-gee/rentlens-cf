@@ -1,0 +1,13 @@
+{
+  "name": "RentLens",
+  "short_name": "RentLens",
+  "description": "Real rents from real residents — apartment-society rental intelligence for Bengaluru.",
+  "start_url": "/",
+  "display": "minimal-ui",
+  "theme_color": "#F7F2EB",
+  "background_color": "#F7F2EB",
+  "icons": [
+    { "src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
