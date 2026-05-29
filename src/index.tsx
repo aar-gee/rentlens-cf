@@ -9,8 +9,12 @@ import { AreaResults } from "./views/components/area-results";
 import { MoverResults } from "./views/components/mover-results";
 import { listFeatured, filterFeatured, search, getBySlug } from "./data/society";
 import { societyDetailBySlug } from "./data/society-detail";
+import { Contact, ContactSuccess } from "./views/pages/contact";
 import { searchAreas } from "./data/area";
 import { searchMovers } from "./data/mover";
+import { insertContact } from "./data/contact";
+import { emptyContact, parseContact, validateContact } from "./lib/contact";
+import { notifyContact } from "./lib/notify";
 import { newSubmission, getSubmissionById } from "./data/submission";
 import {
   emptyStep1,
@@ -29,6 +33,10 @@ import {
 export type Bindings = {
   DB: D1Database;
   ASSETS: Fetcher;
+  // ntfy push (Phase 6 secrets; notify no-ops when NTFY_TOPIC unset).
+  NTFY_TOPIC?: string;
+  NTFY_SERVER?: string;
+  ADMIN_BASE_URL?: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -142,6 +150,24 @@ app.get("/submit/success", async (c) => {
     sub.societyName = "your society";
   }
   return c.html(<SubmitSuccess sub={sub} />);
+});
+
+// ---- Contact ----
+app.get("/contact", (c) => c.html(<Contact data={emptyContact()} errors={{}} />));
+
+// POST /contact: validate, persist (synchronous — recoverable in admin),
+// fire ntfy async (waitUntil), render success.
+app.post("/contact", async (c) => {
+  const body = await c.req.parseBody();
+  const form = parseContact(body);
+  const errs = validateContact(form);
+  if (Object.keys(errs).length > 0) {
+    c.status(422);
+    return c.html(<Contact data={form} errors={errs} />);
+  }
+  const sub = await insertContact(c.env.DB, form);
+  c.executionCtx.waitUntil(notifyContact(c.env, sub));
+  return c.html(<ContactSuccess category={form.category} />);
 });
 
 // Liveness probe — also confirms the D1 binding answers a trivial query.
