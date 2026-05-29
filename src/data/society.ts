@@ -92,6 +92,20 @@ export async function listAll(db: D1Database): Promise<Society[]> {
   return results.map(rowToSociety);
 }
 
+// countPublished returns the number of published societies (dashboard stat).
+export async function countPublished(db: D1Database): Promise<number> {
+  const r = await db.prepare(`SELECT count(*) AS n FROM societies WHERE status='published'`).first<{ n: number }>();
+  return r?.n ?? 0;
+}
+
+// publishedSlugs returns every published society slug (merge-target dropdown).
+export async function publishedSlugs(db: D1Database): Promise<string[]> {
+  const { results } = await db
+    .prepare(`SELECT slug FROM societies WHERE status='published' ORDER BY slug`)
+    .all<{ slug: string }>();
+  return results.map((r) => r.slug);
+}
+
 // getBySlug returns the published society for slug, or null if none.
 export async function getBySlug(db: D1Database, slug: string): Promise<Society | null> {
   const row = await db

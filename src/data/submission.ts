@@ -122,6 +122,34 @@ type SubmissionRow = {
   pending_area_id: string | null;
 };
 
+export async function countSubmissions(db: D1Database): Promise<number> {
+  const r = await db.prepare(`SELECT count(*) AS n FROM submissions`).first<{ n: number }>();
+  return r?.n ?? 0;
+}
+
+// countPendingSubmissions = submissions tagged with a pending society OR area.
+export async function countPendingSubmissions(db: D1Database): Promise<number> {
+  const r = await db
+    .prepare(`SELECT count(*) AS n FROM submissions WHERE pending_society_id IS NOT NULL OR pending_area_id IS NOT NULL`)
+    .first<{ n: number }>();
+  return r?.n ?? 0;
+}
+
+// listSubmissionsForModeration returns the minimal per-submission fields the
+// admin queues aggregate over (pending links + help-contact for distinct counts).
+export async function listSubmissionsForModeration(
+  db: D1Database,
+): Promise<{ pendingSocietyId: string; pendingAreaId: string; helpContact: string }[]> {
+  const { results } = await db
+    .prepare(`SELECT pending_society_id, pending_area_id, help_contact FROM submissions`)
+    .all<{ pending_society_id: string | null; pending_area_id: string | null; help_contact: string }>();
+  return results.map((r) => ({
+    pendingSocietyId: r.pending_society_id ?? "",
+    pendingAreaId: r.pending_area_id ?? "",
+    helpContact: r.help_contact,
+  }));
+}
+
 // getSubmissionById returns the (partial) submission needed by the success
 // page, or null. The success page only reads name/slug/locality/pending ids.
 export async function getSubmissionById(db: D1Database, id: string): Promise<Submission | null> {

@@ -18,6 +18,8 @@ import { searchMovers } from "./data/mover";
 import { insertContact } from "./data/contact";
 import { emptyContact, parseContact, validateContact } from "./lib/contact";
 import { notifyContact } from "./lib/notify";
+import { ADMIN_PREFIX } from "./admin/auth";
+import { adminApp } from "./admin/routes";
 import { newSubmission, getSubmissionById } from "./data/submission";
 import {
   emptyStep1,
@@ -40,9 +42,18 @@ export type Bindings = {
   NTFY_TOPIC?: string;
   NTFY_SERVER?: string;
   ADMIN_BASE_URL?: string;
+  // Admin basic-auth (Phase 6 secrets; admin 404s entirely when unset).
+  ADMIN_USER?: string;
+  ADMIN_PASS?: string;
 };
 
-const app = new Hono<{ Bindings: Bindings }>();
+// strict:false so trailing slashes don't 404 (e.g. the admin dashboard at
+// ADMIN_PREFIX + "/"); no public route depends on the trailing-slash distinction.
+const app = new Hono<{ Bindings: Bindings }>({ strict: false });
+
+// Admin moderation — mounted under the obscure prefix, behind basic-auth.
+// 404s entirely when ADMIN_USER/ADMIN_PASS aren't configured.
+app.route(ADMIN_PREFIX, adminApp);
 
 // Homepage — featured (most-reported) societies + autocomplete search + filters.
 app.get("/", async (c) => {
