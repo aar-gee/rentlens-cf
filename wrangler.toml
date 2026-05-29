@@ -12,10 +12,9 @@ compatibility_flags = ["nodejs_compat"]
 directory = "./public"
 binding = "ASSETS"
 
-# D1 (SQLite). database_id is a placeholder for local dev; replace with the
-# real id from `wrangler d1 create rentlens` in Phase 6.
+# D1 (SQLite). Real database created via `wrangler d1 create rentlens` (Phase 6).
 [[d1_databases]]
 binding = "DB"
 database_name = "rentlens"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "9e77654d-f4c5-42a1-a9ab-e55d9b81d4e7"
 migrations_dir = "migrations"
