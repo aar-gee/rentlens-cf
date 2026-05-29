@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { Layout } from "./views/layout";
-import { Header } from "./views/components/header";
-import { Footer } from "./views/components/footer";
+import { Home, FeaturedCardsInner } from "./views/pages/home";
+import { SearchResults } from "./views/components/search-results";
+import { listFeatured, filterFeatured, search } from "./data/society";
 
 // Worker bindings (see wrangler.toml). DB is the D1 (SQLite) database;
 // ASSETS serves files from public/ (compiled tailwind.css, icons, manifest).
@@ -12,32 +12,30 @@ export type Bindings = {
 
 const app = new Hono<{ Bindings: Bindings }>();
 
-app.get("/", (c) => {
-  return c.html(
-    <Layout
-      meta={{
-        title: "RentLens. — real rents from real residents",
-        description:
-          "Real rents from real residents — apartment-society rental intelligence for Bengaluru.",
-        path: "/",
-      }}
-    >
-      <Header />
-      <main class="max-w-wide mx-auto px-5 sm:px-8 py-16 sm:py-24">
-        <p class="eyebrow">Bengaluru · v0.1</p>
-        <h1 class="display text-[var(--text-display-xxl)] font-light tracking-display leading-[0.98] mt-4">
-          Real rents from
-          <br />
-          real residents<span class="text-marigold">.</span>
-        </h1>
-        <p class="mt-6 max-w-narrow text-ink-mute text-[var(--text-body-lg)] leading-relaxed">
-          Phase 1 — design system + base layout ported. Parchment, ink, marigold;
-          Geist + JetBrains Mono. Read pages land in Phase 3.
-        </p>
-      </main>
-      <Footer />
-    </Layout>,
-  );
+// Homepage — featured (most-reported) societies + autocomplete search + filters.
+app.get("/", async (c) => {
+  const featured = await listFeatured(c.env.DB, 6);
+  return c.html(<Home featured={featured} />);
+});
+
+// /search — autocomplete dropdown HTML fragment. Accepts q or society_name
+// (the submit form posts its raw input name). mode=picker renders fill-form
+// buttons instead of navigate links.
+app.get("/search", async (c) => {
+  let q = (c.req.query("q") ?? "").trim();
+  if (q === "") q = (c.req.query("society_name") ?? "").trim();
+  const picker = c.req.query("mode") === "picker";
+  const results = await search(c.env.DB, q);
+  return c.html(<SearchResults query={q} results={results} picker={picker} />);
+});
+
+// /featured — inner of #featured-cards as an HTMX fragment. ?area + ?bhk
+// filter (empty = no filter); up to 6 matches, most-reported first.
+app.get("/featured", async (c) => {
+  const area = (c.req.query("area") ?? "").trim();
+  const bhk = (c.req.query("bhk") ?? "").trim();
+  const results = await filterFeatured(c.env.DB, area, bhk, 6);
+  return c.html(<FeaturedCardsInner featured={results} />);
 });
 
 // Liveness probe — also confirms the D1 binding answers a trivial query.
