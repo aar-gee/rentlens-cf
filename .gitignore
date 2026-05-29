@@ -8,5 +8,8 @@ public/static/tailwind.css
 .wrangler/
 .dev.vars
 
+# Production secret values (pushed to the Worker via scripts/set-secrets.sh)
+.secrets.local
+
 # Fiberplane local issue tracking
 .fp/

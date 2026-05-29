@@ -12,6 +12,13 @@ compatibility_flags = ["nodejs_compat"]
 directory = "./public"
 binding = "ASSETS"
 
+# Custom domain — wrangler provisions the DNS record + edge cert for the apex
+# (zone must be in this Cloudflare account). www→apex is a separate edge
+# Redirect Rule (set in the dashboard).
+[[routes]]
+pattern = "rentlens.fyi"
+custom_domain = true
+
 # D1 (SQLite). Real database created via `wrangler d1 create rentlens` (Phase 6).
 [[d1_databases]]
 binding = "DB"
