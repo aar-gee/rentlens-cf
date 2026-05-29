@@ -2,7 +2,25 @@
 
 **Date:** 2026-05-29
 **Author:** previous session (context ran low mid-scaffold)
-**Status:** Repo skeleton created. No code written yet. Start at Phase 0 below.
+**Status:** Phases 0–5 SHIPPED + committed + verified locally (`npx wrangler dev`).
+Only Phase 6 (Turnstile + deploy) remains — it needs an interactive
+`wrangler login` + Cloudflare-dashboard steps. fp tracker prefix **RENT**
+(issues RENT-fqtqrqac … RENT-zdlfgdet); only RENT-zdlfgdet (Phase 6) is open.
+
+Progress notes for a fresh session:
+- Stack live: Hono + hono/jsx + D1 + Tailwind v3 → `public/static/tailwind.css`.
+- Routes done: `/`, `/search`, `/featured`, `/societies/:slug` (+ sparse + 404),
+  `/submit` (step1/step2/success), `/areas/search`, `/movers/search`, `/contact`,
+  `/how-it-works`, `/privacy`, `/terms`, admin under `/x-a9c2d27eab89` (basic-auth).
+- D1: `migrations/0001_init.sql` + `0002_seed_societies.sql` (36 societies + 68
+  aliases). Apply locally: `npm run db:migrate:local`.
+- Two deliberate deviations from the Go MVP (confirmed with user): (1) admin
+  pending-AREA actions are REAL persistence (Go left them dummy); (2) privacy/
+  terms "where data lives" copy says D1 (not the Go "in-memory, resets on deploy").
+- Curated `SocietyDetail` is a TS data module (`src/data/society-detail.ts`),
+  not DB rows — mirrors the Go in-code approach.
+- Email receipt (Resend) is NOT wired yet — deferred; needs RESEND_API_KEY.
+- Local admin creds for dev live in `.dev.vars` (gitignored): ADMIN_USER/ADMIN_PASS.
 
 ---
 
