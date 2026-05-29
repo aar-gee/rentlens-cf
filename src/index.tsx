@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import { Home, FeaturedCardsInner } from "./views/pages/home";
+import { Society, SocietySparse } from "./views/pages/society";
 import { SearchResults } from "./views/components/search-results";
-import { listFeatured, filterFeatured, search } from "./data/society";
+import { listFeatured, filterFeatured, search, getBySlug } from "./data/society";
+import { societyDetailBySlug } from "./data/society-detail";
 
 // Worker bindings (see wrangler.toml). DB is the D1 (SQLite) database;
 // ASSETS serves files from public/ (compiled tailwind.css, icons, manifest).
@@ -36,6 +38,17 @@ app.get("/featured", async (c) => {
   const bhk = (c.req.query("bhk") ?? "").trim();
   const results = await filterFeatured(c.env.DB, area, bhk, 6);
   return c.html(<FeaturedCardsInner featured={results} />);
+});
+
+// /societies/:slug — curated detail first; slug-in-catalog-without-detail
+// falls back to the sparse page; unknown slug 404s.
+app.get("/societies/:slug", async (c) => {
+  const slug = c.req.param("slug");
+  const detail = societyDetailBySlug(slug);
+  if (detail) return c.html(<Society detail={detail} />);
+  const soc = await getBySlug(c.env.DB, slug);
+  if (soc) return c.html(<SocietySparse soc={soc} />);
+  return c.notFound();
 });
 
 // Liveness probe — also confirms the D1 binding answers a trivial query.
