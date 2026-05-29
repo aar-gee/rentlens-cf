@@ -18,6 +18,7 @@ import { searchMovers } from "./data/mover";
 import { insertContact } from "./data/contact";
 import { emptyContact, parseContact, validateContact } from "./lib/contact";
 import { notifyContact } from "./lib/notify";
+import { verifyTurnstile, TURNSTILE_ERROR } from "./lib/turnstile";
 import { ADMIN_PREFIX } from "./admin/auth";
 import { adminApp } from "./admin/routes";
 import { newSubmission, getSubmissionById } from "./data/submission";
@@ -42,6 +43,9 @@ export type Bindings = {
   NTFY_TOPIC?: string;
   NTFY_SERVER?: string;
   ADMIN_BASE_URL?: string;
+  // Turnstile anti-spam (no-op when unset: widget hidden + verify passes).
+  TURNSTILE_SITE_KEY?: string;
+  TURNSTILE_SECRET?: string;
   // Admin basic-auth (Phase 6 secrets; admin 404s entirely when unset).
   ADMIN_USER?: string;
   ADMIN_PASS?: string;
@@ -95,7 +99,7 @@ app.get("/societies/:slug", async (c) => {
 // ---- Submit flow ----
 
 // Step 1 form.
-app.get("/submit", (c) => c.html(<Submit step1={emptyStep1()} errors={{}} />));
+app.get("/submit", (c) => c.html(<Submit step1={emptyStep1()} errors={{}} siteKey={c.env.TURNSTILE_SITE_KEY} />));
 
 // /areas/search + /movers/search — picker dropdowns for the submit form.
 app.get("/areas/search", (c) => {
@@ -119,16 +123,24 @@ app.post("/submit/step1", async (c) => {
   const body = await c.req.parseBody();
   const step1 = parseStep1(body);
   const errs = validateStep1(step1);
+  // Turnstile gates progression + the skip-to-success path (the widget lives
+  // on this form). No-op when TURNSTILE_SECRET is unset.
+  const tsOk = await verifyTurnstile(
+    c.env.TURNSTILE_SECRET,
+    String(body["cf-turnstile-response"] ?? ""),
+    c.req.header("CF-Connecting-IP"),
+  );
+  if (!tsOk) errs.turnstile = TURNSTILE_ERROR;
   if (Object.keys(errs).length > 0) {
     c.status(422);
-    return c.html(<Submit step1={step1} errors={errs} />);
+    return c.html(<Submit step1={step1} errors={errs} siteKey={c.env.TURNSTILE_SITE_KEY} />);
   }
   if (body["skip_step2"] === "true") {
     const sub = buildSubmission(step1, emptyStep2());
     await persistSubmission(c.env.DB, sub);
     return c.html(<SubmitSuccess sub={sub} />);
   }
-  return c.html(<SubmitStep2 step1={step1} step2={emptyStep2()} errors={{}} />);
+  return c.html(<SubmitStep2 step1={step1} step2={emptyStep2()} errors={{}} siteKey={c.env.TURNSTILE_SITE_KEY} />);
 });
 
 // Step 2 POST: validate step1+step2; bounce to whichever step failed; on
@@ -138,13 +150,19 @@ app.post("/submit/step2", async (c) => {
   const step1 = parseStep1(body);
   const step2 = parseStep2(body);
   const errs = { ...validateStep1(step1), ...validateStep2(step2) };
+  const tsOk = await verifyTurnstile(
+    c.env.TURNSTILE_SECRET,
+    String(body["cf-turnstile-response"] ?? ""),
+    c.req.header("CF-Connecting-IP"),
+  );
+  if (!tsOk) errs.turnstile = TURNSTILE_ERROR;
   if (hasStep1Errors(errs)) {
     c.status(422);
-    return c.html(<Submit step1={step1} errors={errs} />);
+    return c.html(<Submit step1={step1} errors={errs} siteKey={c.env.TURNSTILE_SITE_KEY} />);
   }
   if (Object.keys(errs).length > 0) {
     c.status(422);
-    return c.html(<SubmitStep2 step1={step1} step2={step2} errors={errs} />);
+    return c.html(<SubmitStep2 step1={step1} step2={step2} errors={errs} siteKey={c.env.TURNSTILE_SITE_KEY} />);
   }
   const sub = buildSubmission(step1, step2);
   await persistSubmission(c.env.DB, sub);
@@ -172,7 +190,7 @@ app.get("/privacy", (c) => c.html(<Privacy />));
 app.get("/terms", (c) => c.html(<Terms />));
 
 // ---- Contact ----
-app.get("/contact", (c) => c.html(<Contact data={emptyContact()} errors={{}} />));
+app.get("/contact", (c) => c.html(<Contact data={emptyContact()} errors={{}} siteKey={c.env.TURNSTILE_SITE_KEY} />));
 
 // POST /contact: validate, persist (synchronous — recoverable in admin),
 // fire ntfy async (waitUntil), render success.
@@ -180,9 +198,15 @@ app.post("/contact", async (c) => {
   const body = await c.req.parseBody();
   const form = parseContact(body);
   const errs = validateContact(form);
+  const tsOk = await verifyTurnstile(
+    c.env.TURNSTILE_SECRET,
+    String(body["cf-turnstile-response"] ?? ""),
+    c.req.header("CF-Connecting-IP"),
+  );
+  if (!tsOk) errs.turnstile = TURNSTILE_ERROR;
   if (Object.keys(errs).length > 0) {
     c.status(422);
-    return c.html(<Contact data={form} errors={errs} />);
+    return c.html(<Contact data={form} errors={errs} siteKey={c.env.TURNSTILE_SITE_KEY} />);
   }
   const sub = await insertContact(c.env.DB, form);
   c.executionCtx.waitUntil(notifyContact(c.env, sub));

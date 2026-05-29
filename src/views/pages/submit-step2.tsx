@@ -16,6 +16,7 @@ import {
   type RadioOption,
   type SelectOption,
 } from "../components/form";
+import { Turnstile } from "../components/turnstile";
 import type { Step1Data, Step2Data } from "../../lib/submit";
 
 type Errors = Record<string, string>;
@@ -268,7 +269,12 @@ const SectionE: FC<{ s2: Step2Data; errors: Errors }> = ({ s2, errors }) => (
   </section>
 );
 
-export const SubmitStep2: FC<{ step1: Step1Data; step2: Step2Data; errors: Errors }> = ({ step1, step2, errors }) => (
+export const SubmitStep2: FC<{ step1: Step1Data; step2: Step2Data; errors: Errors; siteKey?: string }> = ({
+  step1,
+  step2,
+  errors,
+  siteKey,
+}) => (
   <Layout
     meta={{
       title: "Add more detail — RentLens",
@@ -289,6 +295,7 @@ export const SubmitStep2: FC<{ step1: Step1Data; step2: Step2Data; errors: Error
           <SectionC s2={step2} />
           <SectionD s2={step2} errors={errors} />
           <SectionE s2={step2} errors={errors} />
+          <Turnstile siteKey={siteKey} error={errors.turnstile} />
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 pt-2 border-t border-hairline">
             <a href="/submit" class="text-ink-mute hover:text-ink text-sm font-medium link-u">
               ← Start over

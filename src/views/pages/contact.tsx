@@ -4,6 +4,7 @@ import { Header } from "../components/header";
 import { Footer } from "../components/footer";
 import { FieldRow } from "./submit";
 import { FormLabel, RadioGroup, TextInput, Textarea, CounterScript, type RadioOption } from "../components/form";
+import { Turnstile } from "../components/turnstile";
 import type { ContactFormData } from "../../lib/contact";
 
 type Errors = Record<string, string>;
@@ -33,7 +34,7 @@ const PreviewBanner: FC = () => (
   </div>
 );
 
-export const Contact: FC<{ data: ContactFormData; errors: Errors }> = ({ data, errors }) => (
+export const Contact: FC<{ data: ContactFormData; errors: Errors; siteKey?: string }> = ({ data, errors, siteKey }) => (
   <Layout
     meta={{
       title: "Contact — RentLens",
@@ -89,6 +90,7 @@ export const Contact: FC<{ data: ContactFormData; errors: Errors }> = ({ data, e
               error={errors.message}
             />
           </FieldRow>
+          <Turnstile siteKey={siteKey} error={errors.turnstile} />
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 pt-2 border-t border-hairline">
             <div class="text-xs text-ink-mute leading-relaxed max-w-[360px]">
               We read everything. Replies aren't guaranteed during preview, but bug reports are prioritised.

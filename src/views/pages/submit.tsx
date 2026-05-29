@@ -3,6 +3,7 @@ import { Layout } from "../layout";
 import { Header } from "../components/header";
 import { Footer } from "../components/footer";
 import { FormLabel, RadioGroup, NumberInput, type RadioOption } from "../components/form";
+import { Turnstile } from "../components/turnstile";
 import type { Step1Data } from "../../lib/submit";
 
 type Errors = Record<string, string>;
@@ -228,7 +229,7 @@ const Step1Fields: FC<{ step1: Step1Data; errors: Errors }> = ({ step1, errors }
   </>
 );
 
-export const Submit: FC<{ step1: Step1Data; errors: Errors }> = ({ step1, errors }) => (
+export const Submit: FC<{ step1: Step1Data; errors: Errors; siteKey?: string }> = ({ step1, errors, siteKey }) => (
   <Layout
     meta={{
       title: "Submit your rent — RentLens",
@@ -244,6 +245,7 @@ export const Submit: FC<{ step1: Step1Data; errors: Errors }> = ({ step1, errors
         <SubmitIntro step={1} />
         <form action="/submit/step1" method="post" class="mt-10 sm:mt-12 grid gap-8 sm:gap-10" novalidate>
           <Step1Fields step1={step1} errors={errors} />
+          <Turnstile siteKey={siteKey} error={errors.turnstile} />
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 pt-2 border-t border-hairline">
             <div class="text-xs text-ink-mute leading-relaxed max-w-[360px]">
               We review submissions before publishing. Your identity is never shown publicly.
