@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { Home, FeaturedCardsInner } from "./views/pages/home";
 import { Society, SocietySparse } from "./views/pages/society";
 import { Submit } from "./views/pages/submit";
-import { SubmitStep2 } from "./views/pages/submit-step2";
+import { SubmitStep2A, SubmitStep2B } from "./views/pages/submit-step2";
 import { SubmitSuccess } from "./views/pages/submit-success";
 import { SearchResults } from "./views/components/search-results";
 import { AreaResults } from "./views/components/area-results";
@@ -175,12 +175,53 @@ app.post("/submit/step1", async (c) => {
     // helpContact → no email to verify. Go straight to success.
     return c.html(<SubmitSuccess sub={sub} />);
   }
-  return c.html(<SubmitStep2 step1={step1} step2={emptyStep2()} errors={{}} siteKey={c.env.TURNSTILE_SITE_KEY} />);
+  return c.html(<SubmitStep2A step1={step1} step2={emptyStep2()} errors={{}} />);
 });
 
-// Step 2 POST: validate step1+step2; bounce to whichever step failed; on
-// success persist + render success (HX-Redirect for HTMX callers).
-app.post("/submit/step2", async (c) => {
+// Step 2a POST (RENT-tpsfwybf): validate step1 (re-check, in case someone
+// hand-crafted a POST that skipped Step 1) + the section A fields with rules
+// (sqft / deposit ranges). No Turnstile, no persist — just gateway to Step 3.
+// On success render Step 3 carrying step1 + step2 forward.
+app.post("/submit/step2a", async (c) => {
+  const body = await c.req.parseBody();
+  const step1 = parseStep1(body);
+  const step2 = parseStep2(body);
+  const step1Errs = validateStep1(step1);
+  if (hasStep1Errors(step1Errs)) {
+    c.status(422);
+    return c.html(<Submit step1={step1} errors={step1Errs} siteKey={c.env.TURNSTILE_SITE_KEY} />);
+  }
+  // Validate only the A-section fields with rules (sqft, deposit). The B/C/D/E
+  // checks happen on /submit/step2b so users on Step 2 don't get errors about
+  // fields they haven't seen yet.
+  const allStep2Errs = validateStep2(step2);
+  const aErrs: Record<string, string> = {};
+  if (allStep2Errs.sqft) aErrs.sqft = allStep2Errs.sqft;
+  if (allStep2Errs.deposit) aErrs.deposit = allStep2Errs.deposit;
+  if (Object.keys(aErrs).length > 0) {
+    c.status(422);
+    return c.html(<SubmitStep2A step1={step1} step2={step2} errors={aErrs} />);
+  }
+  return c.html(<SubmitStep2B step1={step1} step2={step2} errors={{}} siteKey={c.env.TURNSTILE_SITE_KEY} />);
+});
+
+// Back navigation from Step 3 → Step 2 (preserves all current state). Uses
+// formaction on the back button so a single form ferries everything across.
+// No validation: this is purely "render the previous page with what they've
+// typed". Step 2 validation (re-)runs when they move forward again.
+app.post("/submit/back-step2a", async (c) => {
+  const body = await c.req.parseBody();
+  const step1 = parseStep1(body);
+  const step2 = parseStep2(body);
+  return c.html(<SubmitStep2A step1={step1} step2={step2} errors={{}} />);
+});
+
+// Step 2b POST (RENT-tpsfwybf): the final persist boundary. Validate
+// EVERYTHING again (step1 + all of step2 — defends against hand-crafted POSTs
+// that skip the Step 2 / Step 3 forms), gate Turnstile, then persist + verify.
+// On Step 1 errors bounce all the way back to Step 1; on Step 2 (A) errors
+// bounce to Step 2; on Step 2 (C/D/E) errors re-render Step 3 in place.
+app.post("/submit/step2b", async (c) => {
   const body = await c.req.parseBody();
   const step1 = parseStep1(body);
   const step2 = parseStep2(body);
@@ -195,9 +236,17 @@ app.post("/submit/step2", async (c) => {
     c.status(422);
     return c.html(<Submit step1={step1} errors={errs} siteKey={c.env.TURNSTILE_SITE_KEY} />);
   }
+  // Section-A errors (sqft / deposit) belong on Step 2, not Step 3 — bounce.
+  if (errs.sqft || errs.deposit) {
+    c.status(422);
+    const aErrs: Record<string, string> = {};
+    if (errs.sqft) aErrs.sqft = errs.sqft;
+    if (errs.deposit) aErrs.deposit = errs.deposit;
+    return c.html(<SubmitStep2A step1={step1} step2={step2} errors={aErrs} />);
+  }
   if (Object.keys(errs).length > 0) {
     c.status(422);
-    return c.html(<SubmitStep2 step1={step1} step2={step2} errors={errs} siteKey={c.env.TURNSTILE_SITE_KEY} />);
+    return c.html(<SubmitStep2B step1={step1} step2={step2} errors={errs} siteKey={c.env.TURNSTILE_SITE_KEY} />);
   }
   const sub = buildSubmission(step1, step2);
   await persistSubmission(c.env.DB, sub);

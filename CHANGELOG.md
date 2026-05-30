@@ -6,6 +6,19 @@ All notable changes to RentLens are documented here. Format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Split the optional Step 2 of /submit into two shorter steps to reduce
+  perceived form length and drop-off (RENT-tpsfwybf). Progress now reads
+  "Step 0X of 3". Step 2 carries unit detail + society experience (sections A
+  + B); Step 3 carries source channel + movers + the help-future-renters
+  opt-in (sections C + D + E). Both still fully optional; existing Step 1
+  "skip rest" shortcut unchanged. Step 3 has a Back button that preserves all
+  filled state. Turnstile only gates the final persist (Step 3) — Step 2 is a
+  pure navigation hop. Old `/submit/step2` POST endpoint replaced by
+  `/submit/step2a` (validates section-A numeric ranges + renders Step 3) and
+  `/submit/step2b` (final persist + verify trigger).
+
 ### Added
 
 - Email verification for submissions (RENT-ahstlnjb). When a contributor opts

@@ -46,13 +46,17 @@ export const PreviewBanner: FC = () => (
   </div>
 );
 
-export const SubmitIntro: FC<{ step: number }> = ({ step }) => (
+// step: 1 (society/rent core), 2 (unit detail + experience), 3 (source +
+// movers + help future renters). Step 2 was previously one giant 5-section
+// page; per RENT-tpsfwybf we split it into 2+3 sections to reduce perceived
+// length / drop-off. Total step count is now 3.
+export const SubmitIntro: FC<{ step: 1 | 2 | 3 }> = ({ step }) => (
   <div>
     <div class="flex items-center gap-3 mb-4">
       <span class="eyebrow">/ Contribute</span>
       <span class="h-px w-8 bg-hairline-strong" />
       <span class="num text-[10px] tracking-[0.14em] uppercase text-ink-faint">
-        Step {step === 2 ? "02" : "01"} of 2
+        Step {String(step).padStart(2, "0")} of 3
       </span>
     </div>
     {step === 1 ? (
@@ -64,14 +68,24 @@ export const SubmitIntro: FC<{ step: number }> = ({ step }) => (
           Seven quick fields. Helps future renters of your society see real numbers, not asking prices.
         </p>
       </>
+    ) : step === 2 ? (
+      <>
+        <h1 class="display text-3xl sm:text-5xl md:text-6xl font-normal tracking-tightest leading-[1.02]">
+          Your flat + experience. <span class="text-ink-faint">Optional.</span>
+        </h1>
+        <p class="mt-5 text-base sm:text-lg text-ink-mute max-w-[600px] leading-relaxed">
+          Sharper details — square feet, deposit, what it's actually like to live there. Skip whatever you'd rather
+          not share; the core report you just filled in is already useful.
+        </p>
+      </>
     ) : (
       <>
         <h1 class="display text-3xl sm:text-5xl md:text-6xl font-normal tracking-tightest leading-[1.02]">
-          Add more detail. <span class="text-ink-faint">Optional.</span>
+          A bit more context. <span class="text-ink-faint">Optional.</span>
         </h1>
         <p class="mt-5 text-base sm:text-lg text-ink-mute max-w-[600px] leading-relaxed">
-          Every extra field sharpens the picture. Skip whatever you'd rather not share — the core report you just
-          filled in is already useful.
+          How you found the place, who moved you, and an opt-in to help future renters. Still skippable — we just
+          appreciate the extra context.
         </p>
       </>
     )}

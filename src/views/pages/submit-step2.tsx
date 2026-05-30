@@ -74,6 +74,26 @@ const Step1Hidden: FC<{ s1: Step1Data }> = ({ s1 }) => (
   </>
 );
 
+// Step2AHidden — carries Sections A + B answers (filled on Step 2) forward
+// into Step 3 so the final /submit/step2b POST has all of step2 to persist.
+// Includes everything parseStep2 reads that's "owned" by A + B; the C + D + E
+// inputs are emitted as visible form fields on Step 3 itself.
+const Step2AHidden: FC<{ s2: Step2Data }> = ({ s2 }) => (
+  <>
+    <input type="hidden" name="sqft" value={s2.sqft} />
+    <input type="hidden" name="deposit" value={s2.deposit} />
+    <input type="hidden" name="block" value={s2.block} />
+    <input type="hidden" name="move_in_month" value={s2.moveInMonth} />
+    <input type="hidden" name="move_in_year" value={s2.moveInYear} />
+    <input type="hidden" name="move_out_month" value={s2.moveOutMonth} />
+    <input type="hidden" name="move_out_year" value={s2.moveOutYear} />
+    <input type="hidden" name="rating_value" value={s2.ratingValue} />
+    <input type="hidden" name="rating_quality" value={s2.ratingQuality} />
+    <input type="hidden" name="rating_owner" value={s2.ratingOwner} />
+    <input type="hidden" name="note" value={s2.note} />
+  </>
+);
+
 const SectionHeader: FC<{ label: string; title: string; blurb?: string }> = ({ label, title, blurb }) => (
   <div class="border-l-2 border-marigold pl-5">
     <div class="eyebrow mb-2">{label}</div>
@@ -269,16 +289,20 @@ const SectionE: FC<{ s2: Step2Data; errors: Errors }> = ({ s2, errors }) => (
   </section>
 );
 
-export const SubmitStep2: FC<{ step1: Step1Data; step2: Step2Data; errors: Errors; siteKey?: string }> = ({
+// SubmitStep2A — sections A (unit detail) + B (society experience). All
+// optional. Continue button POSTs to /submit/step2a which validates the A/B
+// fields and renders Step 3. No Turnstile here: this step doesn't persist
+// or mutate anything — Step 1 already gated bots into the flow and Step 3
+// re-gates at the final persist boundary.
+export const SubmitStep2A: FC<{ step1: Step1Data; step2: Step2Data; errors: Errors }> = ({
   step1,
   step2,
   errors,
-  siteKey,
 }) => (
   <Layout
     meta={{
       title: "Add more detail — RentLens",
-      description: "Optional enrichment for your rental submission.",
+      description: "Optional: your specific flat + what living there was like.",
       path: "/submit",
       ogType: "website",
     }}
@@ -288,18 +312,76 @@ export const SubmitStep2: FC<{ step1: Step1Data; step2: Step2Data; errors: Error
     <main class="px-5 sm:px-8 py-10 sm:py-16">
       <div class="max-w-narrow mx-auto">
         <SubmitIntro step={2} />
-        <form action="/submit/step2" method="post" class="mt-10 sm:mt-12 grid gap-12 sm:gap-14" novalidate>
+        <form action="/submit/step2a" method="post" class="mt-10 sm:mt-12 grid gap-12 sm:gap-14" novalidate>
           <Step1Hidden s1={step1} />
           <SectionA s2={step2} errors={errors} />
           <SectionB s2={step2} />
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 pt-2 border-t border-hairline">
+            <a href="/submit" class="text-ink-mute hover:text-ink text-sm font-medium link-u">
+              ← Start over
+            </a>
+            <button
+              type="submit"
+              class="inline-flex items-center justify-center gap-2 bg-ink hover:bg-ink/90 transition-colors text-parchment px-7 py-4 text-base font-medium tracking-tight"
+            >
+              Continue
+              <Arrow />
+            </button>
+          </div>
+        </form>
+      </div>
+    </main>
+    <Footer figLabel="Fig. 04 — Submit step 2" />
+    <CounterScript />
+  </Layout>
+);
+
+// SubmitStep2B — sections C (source) + D (movers) + E (help future renters).
+// All optional. Carries Step 1 + Step 2A state via hidden fields. Two submit
+// buttons share one form via HTML5 formaction: "Back" reposts to
+// /submit/back-step2a (re-renders Step 2A with all current state preserved),
+// "Submit" posts to /submit/step2b (final persist + verify trigger). Turnstile
+// gates the final POST since this is the only step that mutates DB.
+export const SubmitStep2B: FC<{ step1: Step1Data; step2: Step2Data; errors: Errors; siteKey?: string }> = ({
+  step1,
+  step2,
+  errors,
+  siteKey,
+}) => (
+  <Layout
+    meta={{
+      title: "A bit more context — RentLens",
+      description: "Optional: how you found the place, who moved you, and an opt-in to help future renters.",
+      path: "/submit",
+      ogType: "website",
+    }}
+  >
+    <Header />
+    <PreviewBanner />
+    <main class="px-5 sm:px-8 py-10 sm:py-16">
+      <div class="max-w-narrow mx-auto">
+        <SubmitIntro step={3} />
+        <form action="/submit/step2b" method="post" class="mt-10 sm:mt-12 grid gap-12 sm:gap-14" novalidate>
+          <Step1Hidden s1={step1} />
+          <Step2AHidden s2={step2} />
           <SectionC s2={step2} />
           <SectionD s2={step2} errors={errors} />
           <SectionE s2={step2} errors={errors} />
           <Turnstile siteKey={siteKey} error={errors.turnstile} />
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 pt-2 border-t border-hairline">
-            <a href="/submit" class="text-ink-mute hover:text-ink text-sm font-medium link-u">
-              ← Start over
-            </a>
+            <div class="flex items-center gap-5">
+              <a href="/submit" class="text-ink-mute hover:text-ink text-sm font-medium link-u">
+                ← Start over
+              </a>
+              <button
+                type="submit"
+                formaction="/submit/back-step2a"
+                formnovalidate
+                class="text-ink-mute hover:text-ink text-sm font-medium link-u bg-transparent border-0 cursor-pointer p-0"
+              >
+                ← Back
+              </button>
+            </div>
             <button
               type="submit"
               class="inline-flex items-center justify-center gap-2 bg-marigold hover:bg-marigold-deep transition-colors text-parchment px-7 py-4 text-base font-medium tracking-tight"
@@ -311,7 +393,7 @@ export const SubmitStep2: FC<{ step1: Step1Data; step2: Step2Data; errors: Error
         </form>
       </div>
     </main>
-    <Footer figLabel="Fig. 04 — Submit step 2" />
+    <Footer figLabel="Fig. 05 — Submit step 3" />
     <CounterScript />
   </Layout>
 );
