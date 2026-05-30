@@ -254,6 +254,49 @@ export const HowItWorks: FC = () => (
         </p>
       </Section>
 
+      <Section num="06" eyebrow="Data labels" tint>
+        <div id="labels" />
+        <h2 class="display text-2xl sm:text-3xl md:text-4xl font-medium tracking-tighter mb-4">
+          What the labels mean.
+        </h2>
+        <p class="text-base text-ink-mute leading-relaxed max-w-[640px] mb-6">
+          Every society carries a <span class="emph">provenance</span> label so you always know where its numbers come
+          from — and we upgrade it as real resident data arrives.
+        </p>
+        <ul class="space-y-4">
+          <li class="flex items-start gap-4">
+            <span class="w-2.5 h-2.5 rounded-full bg-ink-faint mt-1.5 flex-shrink-0" />
+            <div>
+              <div class="text-sm font-medium text-ink">Indicative</div>
+              <p class="text-sm text-ink-mute leading-relaxed mt-1">
+                A starter estimate so the society isn't blank on day one. Not yet resident-reported — submit your rent
+                and it's replaced with real data.
+              </p>
+            </div>
+          </li>
+          <li class="flex items-start gap-4">
+            <span class="w-2.5 h-2.5 rounded-full bg-marigold mt-1.5 flex-shrink-0" />
+            <div>
+              <div class="text-sm font-medium text-ink">Estimated</div>
+              <p class="text-sm text-ink-mute leading-relaxed mt-1">
+                Aggregated from public listings (asking prices). Directional context — not what residents actually pay,
+                and not resident-verified.
+              </p>
+            </div>
+          </li>
+          <li class="flex items-start gap-4">
+            <span class="w-2.5 h-2.5 rounded-full bg-success mt-1.5 flex-shrink-0" />
+            <div>
+              <div class="text-sm font-medium text-ink">Resident-reported</div>
+              <p class="text-sm text-ink-mute leading-relaxed mt-1">
+                Built from residents' actual reports — the real thing. It also carries one of the four confidence
+                labels above (self-reported → verified source) depending on how corroborated it is.
+              </p>
+            </div>
+          </li>
+        </ul>
+      </Section>
+
       <section id="faq" class="px-5 sm:px-8 py-16 sm:py-24 border-t border-hairline">
         <div class="max-w-base mx-auto">
           <div class="mb-10 sm:mb-14">

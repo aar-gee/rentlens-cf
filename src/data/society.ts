@@ -26,6 +26,15 @@ export type Society = {
   confidenceLabel: string;
   // "2BHK" | "3BHK" | "" — which BHK surfaces on the home-page card.
   featuredBHK: string;
+  // "seed" (indicative bootstrap) | "estimated" (listings) | "resident" (real reports).
+  provenance: string;
+};
+
+// Provenance ⇒ honest label + explainer. Used by views; see how-it-works.
+export const PROVENANCE_LABEL: Record<string, string> = {
+  seed: "Indicative",
+  estimated: "Estimated",
+  resident: "Resident-reported",
 };
 
 type SocietyRow = {
@@ -48,6 +57,7 @@ type SocietyRow = {
   last_updated: string | null;
   confidence_label: string;
   featured_bhk: string;
+  provenance: string;
   aliases_json: string | null;
 };
 
@@ -55,7 +65,7 @@ const SELECT_COLS = `
   s.id, s.slug, s.name, s.locality, s.builder, s.year_built_from, s.year_built_to,
   s.total_units, s.description, s.median_rent_2bhk, s.range_2bhk_low, s.range_2bhk_high,
   s.median_rent_3bhk, s.range_3bhk_low, s.range_3bhk_high, s.report_count, s.last_updated,
-  s.confidence_label, s.featured_bhk,
+  s.confidence_label, s.featured_bhk, s.provenance,
   (SELECT json_group_array(alias) FROM society_aliases WHERE society_id = s.id) AS aliases_json
 `;
 
@@ -81,6 +91,7 @@ function rowToSociety(r: SocietyRow): Society {
     lastUpdated: r.last_updated,
     confidenceLabel: r.confidence_label,
     featuredBHK: r.featured_bhk,
+    provenance: r.provenance,
   };
 }
 

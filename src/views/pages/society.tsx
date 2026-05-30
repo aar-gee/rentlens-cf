@@ -16,6 +16,7 @@ import { RatedList } from "../components/rated-list";
 import { ConfidenceStrip } from "../components/confidence-strip";
 import { NearbyCard } from "../components/nearby-card";
 import { PillRowLeft, type PillItem } from "../components/pill-row";
+import { ProvenanceBadge } from "../components/provenance-badge";
 import { formatINR, formatINRRange } from "../../lib/format";
 import { relativeTime } from "../../lib/relative-time";
 
@@ -146,9 +147,10 @@ const HeroSection: FC<{ d: SocietyDetail }> = ({ d }) => {
   return (
     <section class="px-5 sm:px-8 py-10 sm:py-14 border-b border-hairline">
       <div class="max-w-wide mx-auto">
-        <div class="rise rise-1 flex items-center gap-2.5 mb-5">
+        <div class="rise rise-1 flex flex-wrap items-center gap-2.5 mb-5">
           <span class="w-1.5 h-1.5 rounded-full bg-marigold accent-dot" />
           <span class="eyebrow">{heroEyebrow(d)}</span>
+          <ProvenanceBadge provenance={d.provenance ?? "seed"} />
         </div>
         <div class="rise rise-2 grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-8 lg:gap-12 items-end">
           <div>
@@ -443,9 +445,10 @@ export const SocietySparse: FC<{ soc: SocietyRecord }> = ({ soc }) => (
     <main>
       <section class="px-5 sm:px-8 py-16 sm:py-24 border-b border-hairline">
         <div class="max-w-narrow mx-auto">
-          <div class="rise rise-1 flex items-center gap-2.5 mb-5">
+          <div class="rise rise-1 flex flex-wrap items-center gap-2.5 mb-5">
             <span class="w-1.5 h-1.5 rounded-full bg-ink-faint" />
             <span class="eyebrow">Limited data · early signal</span>
+            <ProvenanceBadge provenance={soc.provenance} />
           </div>
           <h1 class="rise rise-2 display text-[clamp(36px,6vw,72px)] leading-[1] font-normal mb-4">{soc.name}</h1>
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-ink-mute mb-6">

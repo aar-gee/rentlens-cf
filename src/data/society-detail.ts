@@ -72,6 +72,8 @@ export type SocietyDetail = {
   lastUpdated: string | null;
   confidenceLabel: string;
   featuredBHK: string;
+  // Provenance — curated bundles are indicative seed data; omitted ⇒ "seed".
+  provenance?: string;
   // Detail-specific fields.
   nearbyCount: number;
   trend2BHK: TrendDelta | null;
