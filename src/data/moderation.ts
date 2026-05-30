@@ -45,15 +45,18 @@ export async function createSocietyFromPending(
   slug: string,
   name: string,
   locality: string,
-  builder: string,
+  builderId: string,
 ): Promise<void> {
+  const bid = builderId === "" ? null : builderId;
   await db.batch([
+    // builder (text) is resolved from the selected builder row so the
+    // denormalized name + the FK stay in sync; bid null leaves both blank.
     db
       .prepare(
-        `INSERT INTO societies (id, slug, name, locality, builder, description, status, source, contributed_by)
-         VALUES (?, ?, ?, ?, ?, '', 'published', 'contributor', ?)`,
+        `INSERT INTO societies (id, slug, name, locality, builder, builder_id, description, status, source, contributed_by)
+         VALUES (?, ?, ?, ?, COALESCE((SELECT name FROM builders WHERE id = ?), ''), ?, '', 'published', 'contributor', ?)`,
       )
-      .bind(newShortID(), slug, name, locality, builder, actor),
+      .bind(newShortID(), slug, name, locality, bid, bid, actor),
     db
       .prepare(`UPDATE submissions SET society_slug = ?, pending_society_id = NULL WHERE pending_society_id = ?`)
       .bind(slug, pendingId),

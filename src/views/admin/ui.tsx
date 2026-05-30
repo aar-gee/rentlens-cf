@@ -4,6 +4,7 @@ import { adminHref } from "../../admin/auth";
 import type { PendingSociety, PendingArea } from "../../data/pending";
 import type { AdminAction } from "../../data/moderation";
 import type { ContactSubmission } from "../../data/contact";
+import type { Builder } from "../../data/builders";
 
 // queueCounts — the dashboard numbers in one place.
 export type QueueCounts = {
@@ -71,6 +72,7 @@ const AdminBody: FC<PropsWithChildren<{ active: string }>> = ({ active, children
             <NavLink path="/pending-societies" label="Societies" active={active === "societies"} />
             <NavLink path="/pending-areas" label="Areas" active={active === "areas"} />
             <NavLink path="/messages" label="Messages" active={active === "messages"} />
+            <NavLink path="/builders" label="Builders" active={active === "builders"} />
           </nav>
         </div>
         <div class="num text-[10px] text-parchment/45 tracking-[0.18em] uppercase">Moderation · Preview</div>
@@ -198,14 +200,29 @@ const RejectForm: FC<{ action: string; helper: string }> = ({ action, helper }) 
   </form>
 );
 
-const CreateForm: FC<{ action: string; p: PendingSociety; linkedAreaName?: string }> = ({ action, p, linkedAreaName }) => (
+const CreateForm: FC<{ action: string; p: PendingSociety; linkedAreaName?: string; builders: Builder[] }> = ({
+  action,
+  p,
+  linkedAreaName,
+  builders,
+}) => (
   <form action={adminHref(action)} method="post" class="flex flex-col gap-2">
     <div class="text-xs font-medium text-ink">Create canonical society</div>
     <div class="text-xs text-ink-faint leading-relaxed">Promote this typed name into a real catalog row.</div>
     <input type="text" name="slug" required placeholder="slug (kebab-case)" value={proposedSlug(p.typedName)} class="w-full bg-white border border-hairline px-3 py-2 text-sm outline-none focus:border-marigold mt-1 num" />
     <input type="text" name="name" required value={p.typedName} placeholder="canonical name" class="w-full bg-white border border-hairline px-3 py-2 text-sm outline-none focus:border-marigold" />
     <input type="text" name="locality" required value={linkedAreaName && linkedAreaName !== "" ? linkedAreaName : p.locality} placeholder="locality" class="w-full bg-white border border-hairline px-3 py-2 text-sm outline-none focus:border-marigold" />
-    <input type="text" name="builder" placeholder="builder (optional)" class="w-full bg-white border border-hairline px-3 py-2 text-sm outline-none focus:border-marigold" />
+    {/* Builder is a select from the builders table (Category-A drives homepage
+        featuring). Missing one? Add it on the Builders page, then reload. */}
+    <select name="builder_id" class="w-full bg-white border border-hairline px-3 py-2 text-sm outline-none focus:border-marigold">
+      <option value="">— builder (none) —</option>
+      {builders.map((b) => (
+        <option value={b.id}>
+          {b.name}
+          {b.tier === "A" ? "  ★ Category A" : ""}
+        </option>
+      ))}
+    </select>
     <button type="submit" class="bg-marigold text-parchment px-4 py-2 text-sm font-medium tracking-tight hover:bg-marigold-deep transition-colors mt-1">
       Create
     </button>
@@ -252,7 +269,12 @@ const AuditLog: FC<{ actions: AdminAction[] }> = ({ actions }) => (
 // ---- Pending societies queue ----
 type PSRowData = { p: PendingSociety; subCount: number; emailCount: number; linkedAreaName?: string };
 
-const PendingSocietyRow: FC<{ d: PSRowData; canonical: string[]; last: boolean }> = ({ d, canonical, last }) => (
+const PendingSocietyRow: FC<{ d: PSRowData; canonical: string[]; builders: Builder[]; last: boolean }> = ({
+  d,
+  canonical,
+  builders,
+  last,
+}) => (
   <details class={rowClass(last)}>
     <summary class="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-parchment-deep/30 transition-colors">
       <div class="flex-1 min-w-0">
@@ -284,13 +306,18 @@ const PendingSocietyRow: FC<{ d: PSRowData; canonical: string[]; last: boolean }
     </summary>
     <div class="px-5 pb-6 pt-2 border-t border-hairline grid sm:grid-cols-3 gap-5">
       <MergeForm action={`/pending-societies/${d.p.id}/merge`} label="Merge into existing society" helper="Pick the canonical society this typed name should fold into." fieldName="society_slug" options={canonical} />
-      <CreateForm action={`/pending-societies/${d.p.id}/create`} p={d.p} linkedAreaName={d.linkedAreaName} />
+      <CreateForm action={`/pending-societies/${d.p.id}/create`} p={d.p} linkedAreaName={d.linkedAreaName} builders={builders} />
       <RejectForm action={`/pending-societies/${d.p.id}/reject`} helper="Why is this not being added?" />
     </div>
   </details>
 );
 
-export const PendingSocietiesQueue = (rows: PSRowData[], canonical: string[], actions: AdminAction[]) => (
+export const PendingSocietiesQueue = (
+  rows: PSRowData[],
+  canonical: string[],
+  builders: Builder[],
+  actions: AdminAction[],
+) => (
   <AdminBase title="Pending societies" active="societies">
     <main class="px-5 sm:px-8 py-12 sm:py-16">
       <div class="max-w-wide mx-auto">
@@ -303,11 +330,61 @@ export const PendingSocietiesQueue = (rows: PSRowData[], canonical: string[], ac
         ) : (
           <div class="bg-white border border-hairline overflow-hidden">
             {rows.map((d, i) => (
-              <PendingSocietyRow d={d} canonical={canonical} last={i === rows.length - 1} />
+              <PendingSocietyRow d={d} canonical={canonical} builders={builders} last={i === rows.length - 1} />
             ))}
           </div>
         )}
         <AuditLog actions={actions} />
+      </div>
+    </main>
+  </AdminBase>
+);
+
+// ---- Builders management ----
+export const BuildersPage = (builders: Builder[]) => (
+  <AdminBase title="Builders" active="builders">
+    <main class="px-5 sm:px-8 py-12 sm:py-16">
+      <div class="max-w-wide mx-auto">
+        <QueueHeader
+          title="Builders"
+          blurb="The builder catalog. Category-A builders' societies surface on the homepage featured strip; the rest stay fully searchable. Used by the create-society select."
+        />
+        <div class="grid sm:grid-cols-[1fr_320px] gap-6 items-start">
+          <div class="bg-white border border-hairline overflow-hidden">
+            <div class="grid grid-cols-[1fr_90px] text-xs text-ink-mute eyebrow !normal-case px-5 py-3 border-b border-hairline bg-parchment-deep/40">
+              <div>Builder</div>
+              <div class="text-right">Tier</div>
+            </div>
+            {builders.map((b, i) => (
+              <div class={`grid grid-cols-[1fr_90px] text-sm px-5 py-3 items-center${i === builders.length - 1 ? "" : " border-b border-hairline"}`}>
+                <div>
+                  {b.name}
+                  <span class="num text-[10px] text-ink-faint ml-2">{b.slug}</span>
+                </div>
+                <div class="text-right">
+                  {b.tier === "A" ? (
+                    <span class="num text-[10px] tracking-[0.14em] uppercase bg-marigold/15 text-marigold-deep px-2 py-0.5 rounded">A</span>
+                  ) : (
+                    <span class="num text-[10px] text-ink-faint">{b.tier === "B" ? "B" : "—"}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          <form action={adminHref("/builders")} method="post" class="bg-white border border-hairline p-5 flex flex-col gap-2">
+            <div class="text-xs font-medium text-ink">Add a builder</div>
+            <div class="text-xs text-ink-faint leading-relaxed">Then it appears in the create-society select.</div>
+            <input type="text" name="name" required placeholder="Builder name" class="w-full bg-white border border-hairline px-3 py-2 text-sm outline-none focus:border-marigold mt-1" />
+            <select name="tier" class="w-full bg-white border border-hairline px-3 py-2 text-sm outline-none focus:border-marigold">
+              <option value="">Tier — none (searchable only)</option>
+              <option value="A">A — featured on homepage</option>
+              <option value="B">B</option>
+            </select>
+            <button type="submit" class="bg-ink text-parchment px-4 py-2 text-sm font-medium tracking-tight hover:bg-ink/90 transition-colors mt-1">
+              Add builder
+            </button>
+          </form>
+        </div>
       </div>
     </main>
   </AdminBase>

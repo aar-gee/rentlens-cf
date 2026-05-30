@@ -2,8 +2,9 @@
 // Port of admin/server.go route table + admin/handlers.go.
 import { Hono } from "hono";
 import { adminAuth } from "./auth";
-import { Dashboard, PendingSocietiesQueue, PendingAreasQueue, MessagesQueue, ActionResult } from "../views/admin/ui";
+import { Dashboard, PendingSocietiesQueue, PendingAreasQueue, MessagesQueue, ActionResult, BuildersPage } from "../views/admin/ui";
 import { countPublished, publishedSlugs } from "../data/society";
+import { listBuilders, createBuilder } from "../data/builders";
 import { CANONICAL_AREAS } from "../data/area";
 import {
   listPendingSocieties,
@@ -65,10 +66,11 @@ adminApp.get("/", async (c) => {
 
 adminApp.get("/pending-societies", async (c) => {
   const db = c.env.DB;
-  const [societies, subs, canonical, actions] = await Promise.all([
+  const [societies, subs, canonical, builders, actions] = await Promise.all([
     listPendingSocieties(db),
     listSubmissionsForModeration(db),
     publishedSlugs(db),
+    listBuilders(db),
     recentActions(db, 50),
   ]);
 
@@ -98,7 +100,15 @@ adminApp.get("/pending-societies", async (c) => {
     emailCount: emailSeen.get(p.id)?.size ?? 0,
     linkedAreaName: p.pendingAreaId !== "" ? areaNames.get(p.pendingAreaId) : undefined,
   }));
-  return c.html(PendingSocietiesQueue(rows, canonical, actions));
+  return c.html(PendingSocietiesQueue(rows, canonical, builders, actions));
+});
+
+// Builders management — list + add (feeds the create-society select).
+adminApp.get("/builders", async (c) => c.html(BuildersPage(await listBuilders(c.env.DB))));
+adminApp.post("/builders", async (c) => {
+  const b = await c.req.parseBody();
+  await createBuilder(c.env.DB, str(b, "name"), str(b, "tier"));
+  return c.html(ActionResult("Add builder", `Builder "${str(b, "name")}" added.`, "/builders"));
 });
 
 adminApp.get("/pending-areas", async (c) => {
@@ -150,7 +160,7 @@ adminApp.post("/pending-societies/:id/create", async (c) => {
   const slug = str(b, "slug");
   const name = str(b, "name");
   if (slug === "" || name === "") return c.text("slug and name are required", 400);
-  await createSocietyFromPending(c.env.DB, c.get("adminUser"), id, slug, name, str(b, "locality"), str(b, "builder"));
+  await createSocietyFromPending(c.env.DB, c.get("adminUser"), id, slug, name, str(b, "locality"), str(b, "builder_id"));
   return c.html(
     ActionResult("Create", `Created canonical society ${slug} from pending society ${id}. Its submissions now point at the new society.`, "/pending-societies"),
   );
