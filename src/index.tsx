@@ -32,6 +32,7 @@ import {
   hasStep1Errors,
   buildSubmission,
   persistSubmission,
+  isValidEmail,
 } from "./lib/submit";
 import { sendEmail, type EmailEnv } from "./lib/email";
 import {
@@ -454,7 +455,7 @@ app.post("/email/verify-now", async (c) => {
   const body = await c.req.parseBody();
   const email = String(body["email"] ?? "").trim();
   // Format check (same as validateStep1).
-  const valid = email !== "" && email.length <= 254 && email.includes("@") && email.includes(".");
+  const valid = isValidEmail(email);
   if (!valid) {
     return c.html(preverifyNoneFragment("Please type a valid email above, then click Verify email again."), 422);
   }

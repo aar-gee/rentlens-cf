@@ -77,6 +77,16 @@ export const emptyStep2 = (): Step2Data => ({
   helpContact: "",
 });
 
+// isValidEmail — single source of truth for email-format checks across the
+// codebase. Conservative subset of RFC-5321 that catches the common
+// fat-finger cases (trailing comma in `gmail,com`, missing TLD, missing
+// local part) while accepting normal `+aliases`, `.dots`, and ccTLDs.
+// Deeper validation (MX records, deliverability) happens at Resend's end.
+const EMAIL_RE = /^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,24}$/;
+export function isValidEmail(s: string): boolean {
+  return s.length > 0 && s.length <= 254 && EMAIL_RE.test(s);
+}
+
 const ALLOWED_BHK = new Set(["1", "2", "2.5", "3", "3.5", "4+"]);
 // Keep "G" (ground) in sync with the submit form's floorBandOptions.
 const ALLOWED_FLOOR_BAND = new Set(["G", "1-3", "4-7", "8-15", "15-21", "21+"]);
@@ -144,13 +154,10 @@ export function validateStep1(s: Step1Data): Record<string, string> {
     e.monthly_maint = "Maintenance must be a number between 0 and 50,000.";
   if (!ALLOWED_FLOOR_BAND.has(s.floorBand)) e.floor_band = "Pick a floor band.";
   if (!ALLOWED_FURNISHING.has(s.furnishing)) e.furnishing = "Pick a furnishing option.";
-  // Email is optional; only validate format when provided. Same shape check
-  // we apply to help_contact on Step 3 (Zod-light; deeper checks happen at
-  // Resend's end).
-  if (s.email !== "") {
-    if (s.email.length > 254 || !s.email.includes("@") || !s.email.includes(".")) {
-      e.email = "Please enter a valid email address (or leave it blank).";
-    }
+  // Email is optional; only validate format when provided. Shared shape check
+  // via isValidEmail (catches `gmail,com`, missing TLD, etc.).
+  if (s.email !== "" && !isValidEmail(s.email)) {
+    e.email = "Please enter a valid email address (or leave it blank).";
   }
   return e;
 }
@@ -167,9 +174,8 @@ export function validateStep2(s: Step2Data): Record<string, string> {
   }
   if (s.sourceChannel !== "" && !ALLOWED_SOURCE_CHANNEL.has(s.sourceChannel))
     e.source_channel = "Unknown source channel.";
-  if (s.willingToHelp && s.helpContact !== "") {
-    if (!s.helpContact.includes("@") || !s.helpContact.includes("."))
-      e.help_contact = "Please enter a valid email address (or uncheck the help box).";
+  if (s.willingToHelp && s.helpContact !== "" && !isValidEmail(s.helpContact)) {
+    e.help_contact = "Please enter a valid email address (or uncheck the help box).";
   }
   return e;
 }

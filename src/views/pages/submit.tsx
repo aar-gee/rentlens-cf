@@ -249,7 +249,7 @@ const EmailVerifyBlock: FC<{ step1: Step1Data; errors: Errors; preStatus: PreSta
         ) : (
           <div class="text-xs text-ink-faint leading-relaxed">
             Optional. Verified reports are weighted more heavily and surfaced as "verified resident" on the society
-            page. We never show your email publicly or share it with brokers.
+            page. We never show your email publicly or share it with anybody.
           </div>
         )}
       </div>
@@ -396,35 +396,41 @@ export const Submit: FC<{ step1: Step1Data; errors: Errors; siteKey?: string; pr
           <Step1Fields step1={step1} errors={errors} preStatus={preStatus} />
           <Turnstile siteKey={siteKey} error={errors.turnstile} />
 
-          {/* Soft nudge: shown by SUBMIT_NUDGE_SCRIPT when the user clicks
-              Continue / Skip with a non-verified email typed. Hidden by
-              default; the JS toggles `hidden` on/off. */}
-          <div
+          {/* Soft nudge: a real <dialog> modal opened by SUBMIT_NUDGE_SCRIPT
+              when the user clicks Continue / Skip with state='none' AND an
+              email typed. ESC + click-on-backdrop dismiss. The dialog's
+              `[open]` state is what controls visibility — no Tailwind class
+              on the dialog itself (because `display: …` classes fight the
+              native `dialog:not([open]) { display: none }` rule). The inner
+              wrapper carries the visible styling. */}
+          <dialog
             id="email-nudge"
-            hidden
-            class="border border-marigold/40 bg-marigold/10 px-5 py-4 grid gap-3"
+            class="p-0 bg-transparent backdrop:bg-ink/40"
           >
-            <div class="text-sm text-ink leading-relaxed">
-              You haven't verified your email yet. Verification gives your report more credibility — and we won't
-              forward intros to unverified addresses.
+            <div class="bg-parchment max-w-md w-[calc(100vw-2rem)] border border-marigold/40 px-6 py-5 grid gap-4">
+              <div class="eyebrow text-marigold-deep">/ Heads up</div>
+              <div class="text-base text-ink leading-relaxed">
+                You haven't verified your email yet. Verification gives your report more credibility — and we won't
+                forward intros to unverified addresses.
+              </div>
+              <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
+                <button
+                  type="button"
+                  data-nudge-verify
+                  class="bg-ink text-parchment px-5 py-2.5 text-sm font-medium tracking-tight hover:bg-ink/90 transition-colors"
+                >
+                  Verify first
+                </button>
+                <button
+                  type="button"
+                  data-nudge-continue
+                  class="text-sm font-medium text-ink-mute hover:text-ink underline self-start sm:self-center"
+                >
+                  Continue without verifying
+                </button>
+              </div>
             </div>
-            <div class="flex flex-col sm:flex-row gap-3">
-              <button
-                type="button"
-                data-nudge-verify
-                class="bg-ink text-parchment px-4 py-2 text-xs font-medium tracking-tight hover:bg-ink/90 transition-colors"
-              >
-                Verify first
-              </button>
-              <button
-                type="button"
-                data-nudge-continue
-                class="text-xs font-medium text-ink-mute hover:text-ink underline self-center"
-              >
-                Continue without verifying
-              </button>
-            </div>
-          </div>
+          </dialog>
 
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 pt-2 border-t border-hairline">
             <div class="text-xs text-ink-mute leading-relaxed max-w-[360px]">
