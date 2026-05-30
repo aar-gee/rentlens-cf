@@ -27,8 +27,9 @@ export function maskEmail(email: string): string {
 }
 
 export type VerifyState =
-  | { kind: "ask"; submissionId: string; maskedEmail: string; error?: string; attemptsRemaining?: number; cooldownSeconds?: number }
+  | { kind: "ask"; submissionId: string; maskedEmail: string; error?: string; attemptsRemaining?: number; cooldownSeconds?: number; pre?: boolean }
   | { kind: "success"; societyName: string; societySlug: string }
+  | { kind: "pre_success"; maskedEmail: string }
   | { kind: "already_verified"; societyName: string; societySlug: string }
   | { kind: "expired"; submissionId: string; maskedEmail: string }
   | { kind: "locked"; submissionId: string; maskedEmail: string }
@@ -58,6 +59,8 @@ function renderState(state: VerifyState) {
       return <AskForm state={state} />;
     case "success":
       return <Success state={state} />;
+    case "pre_success":
+      return <PreSuccess state={state} />;
     case "already_verified":
       return <AlreadyVerified state={state} />;
     case "expired":
@@ -158,6 +161,29 @@ const checkBadge = (
     <svg width="32" height="32" viewBox="0 0 32 32" fill="none" class="text-marigold">
       <path d="M8 16l5 5 11-11" stroke="currentColor" stroke-width="2.25" stroke-linecap="square" stroke-linejoin="miter" />
     </svg>
+  </div>
+);
+
+// PreSuccess — verification done at Step 1 (no submission yet). Send the
+// contributor back to /submit to finish their report; the rl_preverify cookie
+// stays alive (30min) and gets attached at final-submit time.
+const PreSuccess: FC<{ state: Extract<VerifyState, { kind: "pre_success" }> }> = ({ state }) => (
+  <div class="text-center">
+    {checkBadge}
+    <Eyebrow>Email verified</Eyebrow>
+    <Heading>You're verified.</Heading>
+    <p class="text-base sm:text-lg text-ink-mute max-w-[520px] mx-auto leading-relaxed">
+      Thanks — we'll mark any report you submit with{" "}
+      <span class="text-ink font-medium">{state.maskedEmail}</span> as a verified resident contribution.
+    </p>
+    <div class="mt-10">
+      <a
+        href="/submit"
+        class="inline-block bg-marigold hover:bg-marigold-deep transition-colors text-parchment px-7 py-4 text-base font-medium tracking-tight"
+      >
+        Continue your submission
+      </a>
+    </div>
   </div>
 );
 

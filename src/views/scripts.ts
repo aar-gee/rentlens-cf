@@ -178,3 +178,88 @@ export const FORM_ERROR_CLEAR_SCRIPT = `
   document.addEventListener('change', function(e) { clearNearbyError(e.target); });
 })();
 `;
+
+// Step 1 soft-nudge: when the contributor clicks any submit button on the
+// step-1 form with an email typed but verification not yet complete, pause
+// the form submission and show the #email-nudge banner. From there:
+//   - "Verify first" scrolls to + clicks the inline "Verify email" button
+//     (or scrolls to the inline code form when one already exists).
+//   - "Continue without verifying" hides the nudge and resubmits the same
+//     button (the form proceeds as if the nudge hadn't fired).
+//
+// State is read from #email-verify-state's data-state attribute (set by
+// EmailVerifyBlock + HTMX swap responses). "verified" → no nudge. "none" /
+// "pending" + email value present → nudge. Empty email → no nudge.
+export const SUBMIT_NUDGE_SCRIPT = `
+(function() {
+  var bypass = false;
+  function emailValue() {
+    var v = '';
+    var visible = document.getElementById('submit-email');
+    if (visible && visible.value) v = visible.value;
+    if (!v) {
+      // Pending / verified states render the email as a hidden input.
+      var hidden = document.querySelector('form[data-step1-form] input[type="hidden"][name="email"]');
+      if (hidden) v = hidden.value;
+    }
+    return v.trim();
+  }
+  function state() {
+    var el = document.getElementById('email-verify-state');
+    return el ? (el.getAttribute('data-state') || 'none') : 'none';
+  }
+  function shouldNudge() {
+    if (bypass) return false;
+    // Only nudge from "none" — they typed an email but never clicked Verify
+    // email. "pending" means they're mid-verification; don't second-guess that
+    // intent (and the linked-pre flow will retroactively verify the
+    // submission when the inbox link is clicked).
+    return emailValue() !== '' && state() === 'none';
+  }
+  function nudgeEl() { return document.getElementById('email-nudge'); }
+
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest ? e.target.closest('[data-step1-submit]') : null;
+    if (!btn) return;
+    if (!shouldNudge()) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var n = nudgeEl();
+    if (!n) return;
+    n.removeAttribute('hidden');
+    n.dataset.pendingButton = btn.name || '__continue__';
+    n.scrollIntoView({behavior: 'smooth', block: 'center'});
+  }, true);
+
+  document.addEventListener('click', function(e) {
+    var verifyBtn = e.target.closest ? e.target.closest('[data-nudge-verify]') : null;
+    if (verifyBtn) {
+      e.preventDefault();
+      var n = nudgeEl();
+      if (n) n.setAttribute('hidden', '');
+      // None state: click the inline "Verify email" button.
+      var inlineVerify = document.querySelector('#email-verify-status button[hx-post="/email/verify-now"]');
+      if (inlineVerify) { inlineVerify.click(); return; }
+      // Pending state: scroll to the inline code form.
+      var codeInput = document.querySelector('#email-verify-status input[name="code"]');
+      if (codeInput) { codeInput.focus(); codeInput.scrollIntoView({behavior: 'smooth', block: 'center'}); }
+      return;
+    }
+    var continueBtn = e.target.closest ? e.target.closest('[data-nudge-continue]') : null;
+    if (continueBtn) {
+      e.preventDefault();
+      var n = nudgeEl();
+      if (!n) return;
+      bypass = true;
+      n.setAttribute('hidden', '');
+      var which = n.dataset.pendingButton || '__continue__';
+      // Find and re-click the corresponding step-1 submit (skip vs continue).
+      var selector = which === 'skip_step2'
+        ? 'form[data-step1-form] button[name="skip_step2"]'
+        : 'form[data-step1-form] button[type="submit"]:not([name="skip_step2"])';
+      var target = document.querySelector(selector);
+      if (target) target.click();
+    }
+  });
+})();
+`;

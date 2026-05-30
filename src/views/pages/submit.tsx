@@ -129,7 +129,135 @@ const Arrow: FC = () => (
   </svg>
 );
 
-const Step1Fields: FC<{ step1: Step1Data; errors: Errors }> = ({ step1, errors }) => (
+// PreStatus — pre-submit email verification state, threaded from the route
+// via the loadPreStatus() helper in index.tsx. Mirrors the type there; kept
+// inline so the views layer doesn't import from the route file.
+export type PreStatus = { kind: "verified" | "pending"; email: string } | undefined;
+
+// EmailVerifyBlock renders the email field in one of three states:
+//   none      → email input + "Verify email" button (HTMX → /email/verify-now)
+//   pending   → hidden email + "Sent — enter code" + inline code-entry form
+//   verified  → hidden email + ✓ verified + "Use different" link
+//
+// State marker `<span id="email-verify-state" data-state="...">` lives INSIDE
+// the #email-verify-status div so HTMX swaps update the marker together with
+// the visible content. SUBMIT_NUDGE_SCRIPT reads data-state on Step 1
+// Continue/Skip to decide whether to interrupt the submit.
+const EmailVerifyBlock: FC<{ step1: Step1Data; errors: Errors; preStatus: PreStatus }> = ({
+  step1,
+  errors,
+  preStatus,
+}) => {
+  if (preStatus?.kind === "verified") {
+    return (
+      <FieldRow label="Your email" optional>
+        <input type="hidden" name="email" value={preStatus.email} />
+        <div id="email-verify-status">
+          <span id="email-verify-state" data-state="verified" hidden />
+          <div class="flex items-center gap-3 bg-marigold/10 border border-marigold/30 px-4 py-3">
+            <svg width="16" height="16" viewBox="0 0 16 16" class="text-marigold-deep flex-shrink-0">
+              <path d="M4 8l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="square" fill="none" />
+            </svg>
+            <div class="text-sm text-ink leading-relaxed flex-1">
+              Verified <span class="font-medium">{preStatus.email}</span>
+            </div>
+            <form method="post" action="/email/clear-verify" class="inline">
+              <button type="submit" class="text-xs text-ink-mute hover:text-ink underline">
+                Use different
+              </button>
+            </form>
+          </div>
+        </div>
+      </FieldRow>
+    );
+  }
+  if (preStatus?.kind === "pending") {
+    return (
+      <FieldRow label="Your email" optional>
+        <input type="hidden" name="email" value={preStatus.email} />
+        <div id="email-verify-status" class="grid gap-3">
+          <span id="email-verify-state" data-state="pending" hidden />
+          <div class="text-xs text-marigold-deep leading-relaxed">
+            We sent a verification link + 6-digit code to{" "}
+            <span class="font-medium">{preStatus.email}</span>. Click the link in your inbox, or paste the code below.
+          </div>
+          <form
+            hx-post="/verify"
+            hx-target="#email-verify-status"
+            hx-swap="innerHTML"
+            class="flex items-stretch gap-2"
+          >
+            {/* The pre-verification id lives only in the cookie; the server
+                resolves it on POST /verify when `id` is empty by reading the
+                cookie. We post empty here. */}
+            <input type="hidden" name="id" value="" />
+            <input
+              type="text"
+              name="code"
+              inputmode="numeric"
+              pattern="[0-9]{6}"
+              maxlength={6}
+              autocomplete="one-time-code"
+              required
+              placeholder="000000"
+              class="num text-center text-base tracking-[0.22em] px-3 py-2 bg-white border border-hairline focus:border-ink focus:outline-none flex-1"
+            />
+            <button
+              type="submit"
+              class="bg-ink text-parchment px-4 py-2 text-xs font-medium tracking-tight hover:bg-ink/90 transition-colors"
+            >
+              Verify
+            </button>
+          </form>
+        </div>
+      </FieldRow>
+    );
+  }
+  // none
+  return (
+    <FieldRow
+      label="Your email"
+      helper="We'll send a quick verification — adds credibility to your report."
+      optional
+    >
+      <div class="grid gap-2">
+        <input
+          id="submit-email"
+          type="email"
+          name="email"
+          value={step1.email}
+          placeholder="you@example.com"
+          class={submitInputClass(errors.email)}
+          autocomplete="email"
+          maxlength={254}
+        />
+        <div id="email-verify-status">
+          <span id="email-verify-state" data-state="none" hidden />
+          <button
+            type="button"
+            hx-post="/email/verify-now"
+            hx-include="#submit-email, [name='cf-turnstile-response']"
+            hx-target="#email-verify-status"
+            hx-swap="innerHTML"
+            class="self-start text-xs font-medium text-marigold-deep hover:text-marigold underline"
+          >
+            Verify email →
+          </button>
+        </div>
+        {errors.email ? (
+          <div class="text-xs text-danger mt-0.5">{errors.email}</div>
+        ) : (
+          <div class="text-xs text-ink-faint leading-relaxed">
+            Optional. Verified reports are weighted more heavily and surfaced as "verified resident" on the society
+            page. We never show your email publicly or share it with brokers.
+          </div>
+        )}
+      </div>
+    </FieldRow>
+  );
+};
+
+const Step1Fields: FC<{ step1: Step1Data; errors: Errors; preStatus: PreStatus }> = ({ step1, errors, preStatus }) => (
   <>
     {/* Society name with HTMX picker-mode autocomplete */}
     <div class="grid sm:grid-cols-[200px_1fr] gap-3 sm:gap-10 items-start">
@@ -241,34 +369,16 @@ const Step1Fields: FC<{ step1: Step1Data; errors: Errors }> = ({ step1, errors }
       {errors.furnishing ? <div class="text-xs text-danger mt-2">{errors.furnishing}</div> : null}
     </FieldRow>
 
-    <FieldRow
-      label="Your email"
-      helper="We'll send a quick verification — adds credibility to your report."
-      optional
-    >
-      <input
-        id="submit-email"
-        type="email"
-        name="email"
-        value={step1.email}
-        placeholder="you@example.com"
-        class={submitInputClass(errors.email)}
-        autocomplete="email"
-        maxlength={254}
-      />
-      {errors.email ? (
-        <div class="text-xs text-danger mt-1.5">{errors.email}</div>
-      ) : (
-        <div class="text-xs text-ink-faint mt-1.5 leading-relaxed">
-          Optional. Verified reports are weighted more heavily and surfaced as "verified resident" on the society
-          page. We never show your email publicly or share it with brokers.
-        </div>
-      )}
-    </FieldRow>
+    <EmailVerifyBlock step1={step1} errors={errors} preStatus={preStatus} />
   </>
 );
 
-export const Submit: FC<{ step1: Step1Data; errors: Errors; siteKey?: string }> = ({ step1, errors, siteKey }) => (
+export const Submit: FC<{ step1: Step1Data; errors: Errors; siteKey?: string; preStatus?: PreStatus }> = ({
+  step1,
+  errors,
+  siteKey,
+  preStatus,
+}) => (
   <Layout
     meta={{
       title: "Submit your rent — RentLens",
@@ -282,9 +392,40 @@ export const Submit: FC<{ step1: Step1Data; errors: Errors; siteKey?: string }> 
     <main class="px-5 sm:px-8 py-10 sm:py-16">
       <div class="max-w-narrow mx-auto">
         <SubmitIntro step={1} />
-        <form action="/submit/step1" method="post" class="mt-10 sm:mt-12 grid gap-8 sm:gap-10" novalidate>
-          <Step1Fields step1={step1} errors={errors} />
+        <form action="/submit/step1" method="post" class="mt-10 sm:mt-12 grid gap-8 sm:gap-10" novalidate data-step1-form>
+          <Step1Fields step1={step1} errors={errors} preStatus={preStatus} />
           <Turnstile siteKey={siteKey} error={errors.turnstile} />
+
+          {/* Soft nudge: shown by SUBMIT_NUDGE_SCRIPT when the user clicks
+              Continue / Skip with a non-verified email typed. Hidden by
+              default; the JS toggles `hidden` on/off. */}
+          <div
+            id="email-nudge"
+            hidden
+            class="border border-marigold/40 bg-marigold/10 px-5 py-4 grid gap-3"
+          >
+            <div class="text-sm text-ink leading-relaxed">
+              You haven't verified your email yet. Verification gives your report more credibility — and we won't
+              forward intros to unverified addresses.
+            </div>
+            <div class="flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                data-nudge-verify
+                class="bg-ink text-parchment px-4 py-2 text-xs font-medium tracking-tight hover:bg-ink/90 transition-colors"
+              >
+                Verify first
+              </button>
+              <button
+                type="button"
+                data-nudge-continue
+                class="text-xs font-medium text-ink-mute hover:text-ink underline self-center"
+              >
+                Continue without verifying
+              </button>
+            </div>
+          </div>
+
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 pt-2 border-t border-hairline">
             <div class="text-xs text-ink-mute leading-relaxed max-w-[360px]">
               We review submissions before publishing. Your identity is never shown publicly.
@@ -294,12 +435,14 @@ export const Submit: FC<{ step1: Step1Data; errors: Errors; siteKey?: string }> 
                 name="skip_step2"
                 value="true"
                 type="submit"
+                data-step1-submit
                 class="text-ink-mute hover:text-ink transition-colors text-sm font-medium link-u order-2 sm:order-1"
               >
                 Submit only minimum data
               </button>
               <button
                 type="submit"
+                data-step1-submit
                 class="inline-flex items-center justify-center gap-2 bg-marigold hover:bg-marigold-deep transition-colors text-parchment px-7 py-4 text-base font-medium tracking-tight order-1 sm:order-2"
               >
                 Continue

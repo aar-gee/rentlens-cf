@@ -6,6 +6,23 @@ All notable changes to RentLens are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+
+- "Verify email" button on Step 1 of /submit (user feedback 2026-05-30,
+  RENT-ahstlnjb continued). Clicking it sends the verification email
+  immediately — no need to finish the form first. Cookie-backed
+  (`rl_preverify`, HttpOnly Secure SameSite=Lax, 30min); the inline status
+  block then renders the inbox prompt + 6-digit code input; both magic-link
+  and code paths consume the same pre-verification row. At final submit
+  time the cookie's pre row is attached to the new submission: if already
+  consumed → submission immediately `verify_state='verified'`; if not yet
+  consumed → linked anyway, so the SAME email's link verifies retroactively
+  (no duplicate mail). A soft nudge fires when the user clicks
+  Continue/Skip with an email typed but never clicked Verify email — they
+  can still proceed. Picking a society from the dropdown now also
+  auto-fills the area field (separate small fix shipped earlier as
+  bcead4b).
+
 ### Changed
 
 - Step 1 of /submit now has an optional **Your email** field framed as a
