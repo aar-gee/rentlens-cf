@@ -16,7 +16,10 @@ if [ -n "$ENV_ARG" ]; then
   LABEL="rentlens-${ENV_ARG}"
 else
   FILE=".secrets.local"
-  WFLAGS=()
+  # Wrangler 4 warns when wrangler.toml has multiple [env.*] blocks and
+  # `secret put` is run without --env — to avoid accidentally hitting the
+  # wrong worker. Explicit `--env=""` targets the top-level (prod) env.
+  WFLAGS=(--env "")
   LABEL="rentlens (prod)"
 fi
 
