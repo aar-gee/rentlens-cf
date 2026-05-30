@@ -84,12 +84,22 @@ function rowToSociety(r: SocietyRow): Society {
   };
 }
 
-// listAll returns every published society, oldest first (insertion order).
-export async function listAll(db: D1Database): Promise<Society[]> {
+// loadPublished returns published societies (oldest first). categoryAOnly
+// restricts to societies whose builder is tier 'A' (homepage featured strip);
+// search + full catalog pass false so every builder stays discoverable.
+async function loadPublished(db: D1Database, categoryAOnly: boolean): Promise<Society[]> {
+  const filter = categoryAOnly
+    ? ` AND EXISTS (SELECT 1 FROM builders b WHERE b.id = s.builder_id AND b.tier = 'A')`
+    : "";
   const { results } = await db
-    .prepare(`SELECT ${SELECT_COLS} FROM societies s WHERE s.status = 'published' ORDER BY s.rowid`)
+    .prepare(`SELECT ${SELECT_COLS} FROM societies s WHERE s.status = 'published'${filter} ORDER BY s.rowid`)
     .all<SocietyRow>();
   return results.map(rowToSociety);
+}
+
+// listAll returns every published society, oldest first (insertion order).
+export function listAll(db: D1Database): Promise<Society[]> {
+  return loadPublished(db, false);
 }
 
 // countPublished returns the number of published societies (dashboard stat).
@@ -149,7 +159,9 @@ function sortByReportCountDesc(list: Society[]): void {
 }
 
 // filterFeatured is listFeatured with optional locality + featured-BHK
-// constraints. Empty area or bhk means no filter on that dimension.
+// constraints. Empty area or bhk means no filter on that dimension. The
+// featured strip only shows Category-A-builder societies (others stay
+// searchable via /search, just not featured on the homepage).
 export async function filterFeatured(
   db: D1Database,
   area: string,
@@ -157,7 +169,7 @@ export async function filterFeatured(
   limit: number,
 ): Promise<Society[]> {
   if (limit <= 0) return [];
-  const all = await listAll(db);
+  const all = await loadPublished(db, true);
   const areaNeedle = area.trim().toLowerCase();
   const bhkNeedle = bhk.trim();
   const out = all.filter((soc) => {
