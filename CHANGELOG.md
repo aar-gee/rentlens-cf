@@ -8,8 +8,8 @@ All notable changes to RentLens are documented here. Format follows
 
 ### Added
 
-- Staging environment (`wrangler deploy --env staging`) on
-  `rentlens-staging.winphone730.workers.dev` — its own D1 (`rentlens-staging`),
+- Staging environment (`wrangler deploy --env staging`) on a separate
+  `workers.dev` subdomain (see `wrangler.toml`) — its own D1 (`rentlens-staging`),
   its own secrets (staging admin creds + Turnstile **test** keys), `noindex`.
   Promote to prod only after verifying here.
 - `scripts/set-secrets.sh [env]` — per-environment secret push
