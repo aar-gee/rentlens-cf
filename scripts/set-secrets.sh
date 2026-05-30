@@ -31,7 +31,11 @@ set -a; . "./$FILE"; set +a
 put() {
   local name="$1" val="${2:-}"
   if [ -n "$val" ]; then
-    printf '%s' "$val" | npx wrangler secret put "$name" "${WFLAGS[@]}" >/dev/null
+    # `${WFLAGS[@]+"${WFLAGS[@]}"}` expands to nothing for an empty array
+    # without tripping `set -u` — needed on macOS's bash 3.2 where bare
+    # `"${empty[@]}"` is treated as an unbound reference. (bash 4.4+ handles
+    # this; the workaround is harmless on newer bash.)
+    printf '%s' "$val" | npx wrangler secret put "$name" ${WFLAGS[@]+"${WFLAGS[@]}"} >/dev/null
     echo "  ✓ set $name"
   else
     echo "  · skip $name (empty)"
