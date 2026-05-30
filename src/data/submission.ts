@@ -152,6 +152,43 @@ export async function listSubmissionsForModeration(
 
 // getSubmissionById returns the (partial) submission needed by the success
 // page, or null. The success page only reads name/slug/locality/pending ids.
+// getSubmissionForVerify returns just the fields the /verify routes need —
+// the email (help_contact) we're verifying, the society for the success
+// copy, and the current verify_state so we can short-circuit refreshes.
+// Separate from getSubmissionById on purpose: that one is for the success
+// page and never returned the email.
+export type SubmissionVerifyView = {
+  id: string;
+  societyName: string;
+  societySlug: string;
+  helpContact: string;
+  verifyState: "unverified" | "verified";
+};
+
+export async function getSubmissionForVerify(db: D1Database, id: string): Promise<SubmissionVerifyView | null> {
+  const row = await db
+    .prepare(
+      `SELECT id, society_name, society_slug, help_contact, verify_state
+       FROM submissions WHERE id = ?`,
+    )
+    .bind(id)
+    .first<{
+      id: string;
+      society_name: string;
+      society_slug: string | null;
+      help_contact: string;
+      verify_state: string;
+    }>();
+  if (!row) return null;
+  return {
+    id: row.id,
+    societyName: row.society_name,
+    societySlug: row.society_slug ?? "",
+    helpContact: row.help_contact,
+    verifyState: row.verify_state === "verified" ? "verified" : "unverified",
+  };
+}
+
 export async function getSubmissionById(db: D1Database, id: string): Promise<Submission | null> {
   const row = await db
     .prepare(

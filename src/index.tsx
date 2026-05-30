@@ -21,7 +21,7 @@ import { notifyContact } from "./lib/notify";
 import { verifyTurnstile, TURNSTILE_ERROR } from "./lib/turnstile";
 import { ADMIN_PREFIX } from "./admin/auth";
 import { adminApp } from "./admin/routes";
-import { newSubmission, getSubmissionById } from "./data/submission";
+import { newSubmission, getSubmissionById, getSubmissionForVerify } from "./data/submission";
 import {
   emptyStep1,
   emptyStep2,
@@ -33,6 +33,10 @@ import {
   buildSubmission,
   persistSubmission,
 } from "./lib/submit";
+import { sendEmail, type EmailEnv } from "./lib/email";
+import { createVerification, consumeByToken, consumeByCode, findLive } from "./lib/verify";
+import { verifyEmail as renderVerifyEmail } from "./views/email/verify-email";
+import { Verify, maskEmail, type VerifyState } from "./views/pages/verify";
 
 // Worker bindings (see wrangler.toml). DB is the D1 (SQLite) database;
 // ASSETS serves files from public/ (compiled tailwind.css, icons, manifest).
@@ -49,7 +53,36 @@ export type Bindings = {
   // Admin basic-auth (Phase 6 secrets; admin 404s entirely when unset).
   ADMIN_USER?: string;
   ADMIN_PASS?: string;
+  // Resend (email verification + future receipts). When RESEND_API_KEY is
+  // unset, sendEmail no-ops + logs the would-be body to console (matches the
+  // Turnstile no-op gate so local/staging-pre-secret still works).
+  RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
 };
+
+// Fire-and-forget: queue verification email creation + send for a submission
+// that just persisted. Wraps the sequencing so both submit paths (skip-step2
+// and full-step2) trigger it identically. Caller passes c.executionCtx so the
+// HTTP response can return before Resend's RTT.
+async function triggerVerification(
+  db: D1Database,
+  env: EmailEnv,
+  origin: string,
+  submissionId: string,
+  email: string,
+  societyName: string,
+): Promise<void> {
+  const created = await createVerification(db, submissionId, email);
+  if (created.kind !== "created") return; // cooldown — caller already sent one within the last 60s
+  const { code, token } = created.verification;
+  const body = renderVerifyEmail({
+    societyName: societyName || "your society",
+    code,
+    magicLink: `${origin}/verify/${token}`,
+    ttlMinutes: 30,
+  });
+  await sendEmail(env, { to: email, subject: body.subject, html: body.html, text: body.text });
+}
 
 // strict:false so trailing slashes don't 404 (e.g. the admin dashboard at
 // ADMIN_PREFIX + "/"); no public route depends on the trailing-slash distinction.
@@ -138,6 +171,8 @@ app.post("/submit/step1", async (c) => {
   if (body["skip_step2"] === "true") {
     const sub = buildSubmission(step1, emptyStep2());
     await persistSubmission(c.env.DB, sub);
+    // skip_step2 means no Step 2 → willing_to_help defaults false → no
+    // helpContact → no email to verify. Go straight to success.
     return c.html(<SubmitSuccess sub={sub} />);
   }
   return c.html(<SubmitStep2 step1={step1} step2={emptyStep2()} errors={{}} siteKey={c.env.TURNSTILE_SITE_KEY} />);
@@ -166,6 +201,23 @@ app.post("/submit/step2", async (c) => {
   }
   const sub = buildSubmission(step1, step2);
   await persistSubmission(c.env.DB, sub);
+
+  // If the contributor opted in to "willing to help" + provided an email,
+  // kick off verification asynchronously (waitUntil so the response isn't
+  // blocked on Resend's RTT) and redirect to /verify. Otherwise success.
+  const needsVerify = sub.willingToHelp && sub.helpContact !== "";
+  if (needsVerify) {
+    const origin = new URL(c.req.url).origin;
+    c.executionCtx.waitUntil(
+      triggerVerification(c.env.DB, c.env, origin, sub.id, sub.helpContact, sub.societyName),
+    );
+    if (c.req.header("HX-Request") === "true") {
+      c.header("HX-Redirect", `/verify?id=${sub.id}`);
+      return c.body(null);
+    }
+    return c.redirect(`/verify?id=${sub.id}`);
+  }
+
   if (c.req.header("HX-Request") === "true") {
     c.header("HX-Redirect", `/submit/success?id=${sub.id}`);
     return c.body(null);
@@ -183,6 +235,159 @@ app.get("/submit/success", async (c) => {
   }
   return c.html(<SubmitSuccess sub={sub} />);
 });
+
+// ---- Email verification (RENT-ahstlnjb) ----
+
+// GET /verify?id=<sub_id> — landing page after a submission with an email.
+// Renders the 6-digit code-entry form. State machine:
+//   - submission unknown          → not_found
+//   - submission already verified → already_verified
+//   - no live verification row    → expired (offer resend)
+//   - else                        → ask (the form)
+app.get("/verify", async (c) => {
+  const id = c.req.query("id") ?? "";
+  if (id === "") return c.html(<Verify state={{ kind: "not_found" }} />);
+  const sub = await getSubmissionForVerify(c.env.DB, id);
+  if (!sub) return c.html(<Verify state={{ kind: "not_found" }} />);
+  if (sub.verifyState === "verified") {
+    return c.html(
+      <Verify state={{ kind: "already_verified", societyName: sub.societyName, societySlug: sub.societySlug }} />,
+    );
+  }
+  const live = await findLive(c.env.DB, id);
+  if (!live) {
+    return c.html(<Verify state={{ kind: "expired", submissionId: id, maskedEmail: maskEmail(sub.helpContact) }} />);
+  }
+  return c.html(
+    <Verify state={{ kind: "ask", submissionId: id, maskedEmail: maskEmail(sub.helpContact) }} />,
+  );
+});
+
+// POST /verify — body: id, code. Consume by code.
+app.post("/verify", async (c) => {
+  const body = await c.req.parseBody();
+  const id = String(body["id"] ?? "");
+  const code = String(body["code"] ?? "").trim();
+  if (id === "" || !/^\d{6}$/.test(code)) {
+    const sub = id !== "" ? await getSubmissionForVerify(c.env.DB, id) : null;
+    if (!sub) return c.html(<Verify state={{ kind: "not_found" }} />);
+    return c.html(
+      <Verify
+        state={{
+          kind: "ask",
+          submissionId: id,
+          maskedEmail: maskEmail(sub.helpContact),
+          error: "That doesn't look like a 6-digit code. Check the email and try again.",
+        }}
+      />,
+    );
+  }
+  const sub = await getSubmissionForVerify(c.env.DB, id);
+  if (!sub) return c.html(<Verify state={{ kind: "not_found" }} />);
+  if (sub.verifyState === "verified") {
+    return c.html(
+      <Verify state={{ kind: "already_verified", societyName: sub.societyName, societySlug: sub.societySlug }} />,
+    );
+  }
+  const result = await consumeByCode(c.env.DB, id, code);
+  return renderConsumeResult(c, result, sub);
+});
+
+// GET /verify/:token — magic link.
+app.get("/verify/:token", async (c) => {
+  const token = c.req.param("token");
+  const result = await consumeByToken(c.env.DB, token);
+  if (result.kind === "not_found") return c.html(<Verify state={{ kind: "not_found" }} />);
+  // For success/already_consumed/expired/locked we need the submission for
+  // copy. Magic-link rows always carry submission_id; look it up.
+  // (already_consumed = the link was already used; treat as already_verified
+  // since the same end-state applies — the submission is verified.)
+  if (result.kind === "ok") {
+    const sub = await getSubmissionForVerify(c.env.DB, result.verification.submissionId);
+    if (!sub) return c.html(<Verify state={{ kind: "not_found" }} />);
+    return c.html(
+      <Verify state={{ kind: "success", societyName: sub.societyName, societySlug: sub.societySlug }} />,
+    );
+  }
+  if (result.kind === "already_consumed") {
+    // Need the submission id from the token row to look up society. We can
+    // re-query email_verifications, but cheaper: consumeByToken already gave
+    // us nothing — fall back to "not_found"-ish messaging via expired text.
+    // In practice this is reached only when someone reloads the magic link
+    // after a successful first hit, so just say "already verified" generically.
+    return c.html(
+      <Verify state={{ kind: "already_verified", societyName: "your report", societySlug: "" }} />,
+    );
+  }
+  // expired / locked from a magic-link click: we don't know which submission
+  // without re-querying. The user can re-trigger from /verify?id= if they
+  // remember the id — but typically they'll re-submit. Show a generic expired.
+  return c.html(<Verify state={{ kind: "not_found" }} />);
+});
+
+// POST /verify/resend — body: id.
+app.post("/verify/resend", async (c) => {
+  const body = await c.req.parseBody();
+  const id = String(body["id"] ?? "");
+  if (id === "") return c.redirect("/verify");
+  const sub = await getSubmissionForVerify(c.env.DB, id);
+  if (!sub) return c.html(<Verify state={{ kind: "not_found" }} />);
+  if (sub.verifyState === "verified") {
+    return c.html(
+      <Verify state={{ kind: "already_verified", societyName: sub.societyName, societySlug: sub.societySlug }} />,
+    );
+  }
+  if (sub.helpContact === "") {
+    // Resend requested on a submission that has no email — should not happen
+    // via the UI but handle it. Render not_found rather than expose the data.
+    return c.html(<Verify state={{ kind: "not_found" }} />);
+  }
+  const origin = new URL(c.req.url).origin;
+  c.executionCtx.waitUntil(
+    triggerVerification(c.env.DB, c.env, origin, sub.id, sub.helpContact, sub.societyName),
+  );
+  return c.redirect(`/verify?id=${id}`);
+});
+
+// renderConsumeResult — shared mapper for POST /verify outcomes (code path).
+function renderConsumeResult(
+  c: import("hono").Context<{ Bindings: Bindings }>,
+  result: Awaited<ReturnType<typeof consumeByCode>>,
+  sub: { societyName: string; societySlug: string; helpContact: string; id: string },
+) {
+  switch (result.kind) {
+    case "ok":
+      return c.html(
+        <Verify state={{ kind: "success", societyName: sub.societyName, societySlug: sub.societySlug }} />,
+      );
+    case "already_consumed":
+      return c.html(
+        <Verify state={{ kind: "already_verified", societyName: sub.societyName, societySlug: sub.societySlug }} />,
+      );
+    case "expired":
+      return c.html(
+        <Verify state={{ kind: "expired", submissionId: sub.id, maskedEmail: maskEmail(sub.helpContact) }} />,
+      );
+    case "locked":
+      return c.html(
+        <Verify state={{ kind: "locked", submissionId: sub.id, maskedEmail: maskEmail(sub.helpContact) }} />,
+      );
+    case "wrong_code":
+      return c.html(
+        <Verify
+          state={{
+            kind: "ask",
+            submissionId: sub.id,
+            maskedEmail: maskEmail(sub.helpContact),
+            error: "That code didn't match. Double-check the email — or request a new code below.",
+            attemptsRemaining: result.attemptsRemaining,
+          }}
+        />,
+      );
+    case "not_found":
+      return c.html(<Verify state={{ kind: "not_found" }} />);
+  }
+}
 
 // ---- Static content pages ----
 app.get("/how-it-works", (c) => c.html(<HowItWorks />));
