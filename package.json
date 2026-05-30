@@ -10,10 +10,12 @@
     "css": "tailwindcss -i ./src/styles/input.css -o ./public/static/tailwind.css --watch",
     "build": "npm run build:css",
     "deploy": "npm run build:css && wrangler deploy",
+    "deploy:staging": "npm run build:css && wrangler deploy --env staging",
     "typecheck": "tsc --noEmit",
     "seed:gen": "node seed/gen-seed.ts",
     "db:migrate:local": "wrangler d1 migrations apply rentlens --local",
-    "db:migrate": "wrangler d1 migrations apply rentlens --remote"
+    "db:migrate": "wrangler d1 migrations apply rentlens --remote",
+    "db:migrate:staging": "wrangler d1 migrations apply rentlens-staging --remote --env staging"
   },
   "dependencies": {
     "hono": "^4.6.0"

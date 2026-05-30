@@ -25,3 +25,26 @@ binding = "DB"
 database_name = "rentlens"
 database_id = "9e77654d-f4c5-42a1-a9ab-e55d9b81d4e7"
 migrations_dir = "migrations"
+
+# ---------------------------------------------------------------------
+# Staging environment — deploy with `wrangler deploy --env staging`.
+# Served on the workers.dev subdomain (no apex), noindex. Its own D1 +
+# its own secrets (staging admin creds + Turnstile TEST keys). Promote to
+# prod only after verifying here.
+# ---------------------------------------------------------------------
+[env.staging]
+name = "rentlens-staging"
+workers_dev = true
+# Explicitly NO routes — without this, the top-level [[routes]] (rentlens.fyi
+# custom domain) is inherited and staging steals the production domain.
+routes = []
+
+[env.staging.assets]
+directory = "./public"
+binding = "ASSETS"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "rentlens-staging"
+database_id = "0df82f6f-7a39-4c47-b877-468c6913c0c1"
+migrations_dir = "migrations"
