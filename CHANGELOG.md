@@ -8,6 +8,16 @@ All notable changes to RentLens are documented here. Format follows
 
 ### Changed
 
+- Step 1 of /submit now has an optional **Your email** field framed as a
+  credibility signal ("Verified reports are weighted more heavily and
+  surfaced as 'verified resident' on the society page"). The email carries
+  through Step 2 and pre-fills Step 3's contact field with a
+  "Carried from Step 1 — edit or clear" hint. Verification fires at the
+  final persist boundary (Step 1 skip OR Step 3 submit), not at Step 1
+  continue (the submission row doesn't exist yet). When the contributor
+  also opts in to "willing to help" on Step 3, intros are gated downstream
+  on `verify_state='verified'` — the opt-in is dormant until verified.
+  Single source of truth: new `isActiveOptIn()` helper in `data/submission`.
 - Split the optional Step 2 of /submit into two shorter steps to reduce
   perceived form length and drop-off (RENT-tpsfwybf). Progress now reads
   "Step 0X of 3". Step 2 carries unit detail + society experience (sections A

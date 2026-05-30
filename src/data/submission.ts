@@ -152,6 +152,20 @@ export async function listSubmissionsForModeration(
 
 // getSubmissionById returns the (partial) submission needed by the success
 // page, or null. The success page only reads name/slug/locality/pending ids.
+// isActiveOptIn — single source of truth for "may we contact this resident
+// for intros?". A submission with `willing_to_help=true` is dormant until
+// the contributor's email is verified; downstream intro flows MUST gate on
+// this helper rather than reading `willing_to_help` directly. Decoupling the
+// rule from the columns means tightening the rule later (e.g. add a "not
+// banned" check) is one-file.
+export function isActiveOptIn(row: {
+  willingToHelp: boolean;
+  helpContact: string;
+  verifyState: "unverified" | "verified";
+}): boolean {
+  return row.willingToHelp && row.helpContact !== "" && row.verifyState === "verified";
+}
+
 // getSubmissionForVerify returns just the fields the /verify routes need —
 // the email (help_contact) we're verifying, the society for the success
 // copy, and the current verify_state so we can short-circuit refreshes.

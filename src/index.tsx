@@ -61,9 +61,9 @@ export type Bindings = {
 };
 
 // Fire-and-forget: queue verification email creation + send for a submission
-// that just persisted. Wraps the sequencing so both submit paths (skip-step2
-// and full-step2) trigger it identically. Caller passes c.executionCtx so the
-// HTTP response can return before Resend's RTT.
+// that just persisted. Wraps the sequencing so all submit paths trigger it
+// identically. Caller passes c.executionCtx so the HTTP response can return
+// before Resend's RTT.
 async function triggerVerification(
   db: D1Database,
   env: EmailEnv,
@@ -82,6 +82,34 @@ async function triggerVerification(
     ttlMinutes: 30,
   });
   await sendEmail(env, { to: email, subject: body.subject, html: body.html, text: body.text });
+}
+
+// Shared post-persist responder. Verification fires whenever the submission
+// carries an email (helpContact !== ""), regardless of willing_to_help — the
+// "credibility" Step-1 path doesn't require willing-to-help; the help-future-
+// renters opt-in path naturally has both. willing_to_help itself is honoured
+// downstream only when verify_state='verified' (see Submission docs + the
+// admin moderation queue when it lands).
+async function respondAfterPersist(
+  c: import("hono").Context<{ Bindings: Bindings }>,
+  sub: import("./data/submission").Submission,
+): Promise<Response> {
+  if (sub.helpContact !== "") {
+    const origin = new URL(c.req.url).origin;
+    c.executionCtx.waitUntil(
+      triggerVerification(c.env.DB, c.env, origin, sub.id, sub.helpContact, sub.societyName),
+    );
+    if (c.req.header("HX-Request") === "true") {
+      c.header("HX-Redirect", `/verify?id=${sub.id}`);
+      return c.body(null);
+    }
+    return c.redirect(`/verify?id=${sub.id}`);
+  }
+  if (c.req.header("HX-Request") === "true") {
+    c.header("HX-Redirect", `/submit/success?id=${sub.id}`);
+    return c.body(null);
+  }
+  return c.html(<SubmitSuccess sub={sub} />);
 }
 
 // strict:false so trailing slashes don't 404 (e.g. the admin dashboard at
@@ -171,9 +199,10 @@ app.post("/submit/step1", async (c) => {
   if (body["skip_step2"] === "true") {
     const sub = buildSubmission(step1, emptyStep2());
     await persistSubmission(c.env.DB, sub);
-    // skip_step2 means no Step 2 → willing_to_help defaults false → no
-    // helpContact → no email to verify. Go straight to success.
-    return c.html(<SubmitSuccess sub={sub} />);
+    // helpContact = step1.email here (Step 2 was never rendered → s2.helpContact
+    // is empty → buildSubmission falls back to step1.email). respondAfterPersist
+    // triggers verification when an email is present, success otherwise.
+    return respondAfterPersist(c, sub);
   }
   return c.html(<SubmitStep2A step1={step1} step2={emptyStep2()} errors={{}} />);
 });
@@ -250,28 +279,7 @@ app.post("/submit/step2b", async (c) => {
   }
   const sub = buildSubmission(step1, step2);
   await persistSubmission(c.env.DB, sub);
-
-  // If the contributor opted in to "willing to help" + provided an email,
-  // kick off verification asynchronously (waitUntil so the response isn't
-  // blocked on Resend's RTT) and redirect to /verify. Otherwise success.
-  const needsVerify = sub.willingToHelp && sub.helpContact !== "";
-  if (needsVerify) {
-    const origin = new URL(c.req.url).origin;
-    c.executionCtx.waitUntil(
-      triggerVerification(c.env.DB, c.env, origin, sub.id, sub.helpContact, sub.societyName),
-    );
-    if (c.req.header("HX-Request") === "true") {
-      c.header("HX-Redirect", `/verify?id=${sub.id}`);
-      return c.body(null);
-    }
-    return c.redirect(`/verify?id=${sub.id}`);
-  }
-
-  if (c.req.header("HX-Request") === "true") {
-    c.header("HX-Redirect", `/submit/success?id=${sub.id}`);
-    return c.body(null);
-  }
-  return c.html(<SubmitSuccess sub={sub} />);
+  return respondAfterPersist(c, sub);
 });
 
 // Success page — ?id lookup falls back to a generic page so refreshes render.

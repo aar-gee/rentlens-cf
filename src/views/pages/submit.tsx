@@ -240,6 +240,31 @@ const Step1Fields: FC<{ step1: Step1Data; errors: Errors }> = ({ step1, errors }
       <RadioGroup name="furnishing" options={furnishingOptions} selected={step1.furnishing} layout="list" />
       {errors.furnishing ? <div class="text-xs text-danger mt-2">{errors.furnishing}</div> : null}
     </FieldRow>
+
+    <FieldRow
+      label="Your email"
+      helper="We'll send a quick verification — adds credibility to your report."
+      optional
+    >
+      <input
+        id="submit-email"
+        type="email"
+        name="email"
+        value={step1.email}
+        placeholder="you@example.com"
+        class={submitInputClass(errors.email)}
+        autocomplete="email"
+        maxlength={254}
+      />
+      {errors.email ? (
+        <div class="text-xs text-danger mt-1.5">{errors.email}</div>
+      ) : (
+        <div class="text-xs text-ink-faint mt-1.5 leading-relaxed">
+          Optional. Verified reports are weighted more heavily and surfaced as "verified resident" on the society
+          page. We never show your email publicly or share it with brokers.
+        </div>
+      )}
+    </FieldRow>
   </>
 );
 

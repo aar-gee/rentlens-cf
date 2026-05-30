@@ -15,6 +15,12 @@ export type Step1Data = {
   monthlyMaint: string;
   floorBand: string;
   furnishing: string;
+  // Optional email — collected on Step 1 with the "adds credibility to your
+  // report" framing (RENT-ahstlnjb continued). Carried through Steps 2 + 3 via
+  // hidden inputs; pre-fills Step 3's help_contact box on render. Verification
+  // fires at the final persist boundary (Step 1 skip path OR Step 3 submit),
+  // not on Step 1 continue — the submission row doesn't exist yet then.
+  email: string;
 };
 
 export type Step2Data = {
@@ -47,6 +53,7 @@ export const emptyStep1 = (): Step1Data => ({
   monthlyMaint: "",
   floorBand: "",
   furnishing: "",
+  email: "",
 });
 
 export const emptyStep2 = (): Step2Data => ({
@@ -92,6 +99,7 @@ export function parseStep1(b: Body): Step1Data {
     monthlyMaint: str(b, "monthly_maint"),
     floorBand: str(b, "floor_band"),
     furnishing: str(b, "furnishing"),
+    email: str(b, "email"),
   };
 }
 
@@ -136,6 +144,14 @@ export function validateStep1(s: Step1Data): Record<string, string> {
     e.monthly_maint = "Maintenance must be a number between 0 and 50,000.";
   if (!ALLOWED_FLOOR_BAND.has(s.floorBand)) e.floor_band = "Pick a floor band.";
   if (!ALLOWED_FURNISHING.has(s.furnishing)) e.furnishing = "Pick a furnishing option.";
+  // Email is optional; only validate format when provided. Same shape check
+  // we apply to help_contact on Step 3 (Zod-light; deeper checks happen at
+  // Resend's end).
+  if (s.email !== "") {
+    if (s.email.length > 254 || !s.email.includes("@") || !s.email.includes(".")) {
+      e.email = "Please enter a valid email address (or leave it blank).";
+    }
+  }
   return e;
 }
 
@@ -186,7 +202,13 @@ export function buildSubmission(s1: Step1Data, s2: Step2Data): Submission {
   if (!Number.isNaN(rent)) sub.monthlyRent = rent;
   const maint = parseIntStrict(s1.monthlyMaint);
   if (!Number.isNaN(maint)) sub.monthlyMaint = maint;
-  if (sub.willingToHelp) sub.helpContact = s2.helpContact;
+  // help_contact is the contributor's email, when any. Priority: Step 3 input
+  // wins (because Step 3 pre-fills its box from s1.email on render, the only
+  // way s2.helpContact differs is if the user edited it). Step 1 email fills
+  // in on the SKIP path where Step 3 was never rendered. willing_to_help is
+  // independent — it gates "intros allowed", and downstream consumers must
+  // additionally check verify_state='verified' before contacting.
+  sub.helpContact = s2.helpContact !== "" ? s2.helpContact : s1.email;
 
   sub.sqft = optInt(s2.sqft);
   sub.deposit = optInt(s2.deposit);

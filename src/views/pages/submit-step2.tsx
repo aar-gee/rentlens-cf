@@ -71,6 +71,7 @@ const Step1Hidden: FC<{ s1: Step1Data }> = ({ s1 }) => (
     <input type="hidden" name="monthly_maint" value={s1.monthlyMaint} />
     <input type="hidden" name="floor_band" value={s1.floorBand} />
     <input type="hidden" name="furnishing" value={s1.furnishing} />
+    <input type="hidden" name="email" value={s1.email} />
   </>
 );
 
@@ -258,36 +259,57 @@ const SectionD: FC<{ s2: Step2Data; errors: Errors }> = ({ s2, errors }) => (
   </section>
 );
 
-const SectionE: FC<{ s2: Step2Data; errors: Errors }> = ({ s2, errors }) => (
-  <section class="grid gap-6">
-    <SectionHeader
-      label="/ Section E · Help future renters"
-      title="Willing to be reached, occasionally?"
-      blurb="Only if you opt in — and only with your explicit consent each time."
-    />
-    <div class="bg-parchment-deep/40 border border-hairline p-6 grid gap-5">
-      <Checkbox
-        name="willing_to_help"
-        value="yes"
-        checked={s2.willingToHelp}
-        label="I'd be willing to help future renters of this society find a flat."
-        description="We'll never share your contact. You can opt out anytime."
+// SectionE — help-future-renters opt-in.
+//
+// Email pre-fill: if Step 1 collected an email and the user hasn't touched
+// the help_contact field, we pre-fill it from s1.email. The visible
+// `Carried from Step 1` hint tells them why it's already populated; they can
+// still edit/clear.
+//
+// Mandatory verification: when the opt-in checkbox is checked, intros only
+// happen AFTER the contributor verifies their email (downstream consumers
+// check both `willing_to_help` AND `verify_state='verified'`). The copy makes
+// this explicit so users understand checking the box without verifying is a
+// no-op. Verification itself is async — submission still persists; opt-in
+// dormant until verified.
+const SectionE: FC<{ s1: Step1Data; s2: Step2Data; errors: Errors }> = ({ s1, s2, errors }) => {
+  const carriedFromStep1 = s2.helpContact === "" && s1.email !== "";
+  const displayValue = s2.helpContact !== "" ? s2.helpContact : s1.email;
+  return (
+    <section class="grid gap-6">
+      <SectionHeader
+        label="/ Section E · Help future renters"
+        title="Willing to be reached, occasionally?"
+        blurb="Only if you opt in — and only with your explicit consent each time."
       />
-      <div>
-        <FormLabel forId="submit-help-contact" text="Contact email" optional />
-        <TextInput
-          id="submit-help-contact"
-          name="help_contact"
-          value={s2.helpContact}
-          placeholder="you@example.com"
-          type="email"
-          helper="We'll only contact you about future renter intros if you check the box above. Skip if you'd rather not."
-          error={errors.help_contact}
+      <div class="bg-parchment-deep/40 border border-hairline p-6 grid gap-5">
+        <Checkbox
+          name="willing_to_help"
+          value="yes"
+          checked={s2.willingToHelp}
+          label="I'd be willing to help future renters of this society find a flat."
+          description="If checked, we'll only forward intros once you've verified your email — we won't contact an unverified address."
         />
+        <div>
+          <FormLabel forId="submit-help-contact" text="Contact email" optional />
+          <TextInput
+            id="submit-help-contact"
+            name="help_contact"
+            value={displayValue}
+            placeholder="you@example.com"
+            type="email"
+            helper={
+              carriedFromStep1
+                ? "Carried from Step 1 — edit or clear if you'd rather a different address."
+                : "We'll only contact you about future renter intros if you check the box above. Skip if you'd rather not."
+            }
+            error={errors.help_contact}
+          />
+        </div>
       </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 // SubmitStep2A — sections A (unit detail) + B (society experience). All
 // optional. Continue button POSTs to /submit/step2a which validates the A/B
@@ -366,7 +388,7 @@ export const SubmitStep2B: FC<{ step1: Step1Data; step2: Step2Data; errors: Erro
           <Step2AHidden s2={step2} />
           <SectionC s2={step2} />
           <SectionD s2={step2} errors={errors} />
-          <SectionE s2={step2} errors={errors} />
+          <SectionE s1={step1} s2={step2} errors={errors} />
           <Turnstile siteKey={siteKey} error={errors.turnstile} />
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 pt-2 border-t border-hairline">
             <div class="flex items-center gap-5">
