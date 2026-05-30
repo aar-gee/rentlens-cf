@@ -34,6 +34,13 @@ const RowBody: FC<{ soc: Society }> = ({ soc }) => (
   </>
 );
 
+// Picker buttons additionally carry the society's locality so the submit
+// form's area input pre-fills on pick (user feedback 2026-05-30). The
+// PICKER_SCRIPT writes the locality only when data-locality is non-empty —
+// picks against legacy seed rows with no locality won't clobber whatever the
+// user already typed. Duplicate-name societies in different areas are
+// disambiguated by the row metadata (locality shown in the second line);
+// once the user picks the right row, locality fills from that row.
 const SearchRow: FC<{ soc: Society; last: boolean; picker: boolean }> = ({ soc, last, picker }) =>
   picker ? (
     <button
@@ -41,8 +48,10 @@ const SearchRow: FC<{ soc: Society; last: boolean; picker: boolean }> = ({ soc, 
       data-pick
       data-name={soc.name}
       data-slug={soc.slug}
+      data-locality={soc.locality}
       data-target-name="submit-society-name"
       data-target-slug="submit-society-slug"
+      data-target-locality="submit-locality"
       data-target-results="submit-society-results"
       class={rowClass(last) + " w-full text-left bg-transparent"}
     >

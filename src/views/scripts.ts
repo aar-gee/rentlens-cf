@@ -51,6 +51,13 @@ export const PICKER_SCRIPT = `
       setVal(btn.dataset.targetName, btn.dataset.name || '');
       setVal(btn.dataset.targetSlug, btn.dataset.slug || '');
       setVal(btn.dataset.targetCanonical, btn.dataset.canonical || '');
+      // Locality auto-fill: only when the picked row has a non-empty locality
+      // (seed-era rows with locality='' don't clobber user-typed area; and
+      // the AddNewAffordance "Add new society" row carries no data-locality
+      // so this is a no-op there).
+      if (btn.dataset.targetLocality && btn.dataset.locality) {
+        setVal(btn.dataset.targetLocality, btn.dataset.locality);
+      }
       if (btn.dataset.targetResults) {
         clearResults(document.getElementById(btn.dataset.targetResults));
       }
