@@ -8,6 +8,17 @@ All notable changes to RentLens are documented here. Format follows
 
 ### Added
 
+- Email verification for submissions (RENT-ahstlnjb). When a contributor opts
+  in to "willing to help" + provides an email on Step 2, we send a single
+  email containing **both** a magic link (`/verify/<token>`) and a 6-digit
+  code; the contributor picks whichever they prefer. Both expire in 30 min;
+  5 wrong codes locks the attempt and forces a resend (60s cooldown). Verified
+  reports are flagged on the submission row (`verify_state` + `verified_at`)
+  — orthogonal to moderation, so admins still review every report. Built
+  behind a single `src/lib/email.ts` `sendEmail()` interface (Resend-backed
+  today, gated to log-only no-op when `RESEND_API_KEY` is unset so local dev
+  + pre-secret staging still work). New table `email_verifications` carries
+  the token, code, expiry, and attempt counter.
 - Staging environment (`wrangler deploy --env staging`) on a separate
   `workers.dev` subdomain (see `wrangler.toml`) — its own D1 (`rentlens-staging`),
   its own secrets (staging admin creds + Turnstile **test** keys), `noindex`.
