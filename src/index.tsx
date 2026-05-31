@@ -1083,9 +1083,9 @@ app.get("/notes/:slug", (c) => {
   return c.html(<NoteArticle note={note} />);
 });
 
-app.get("/how-it-works", (c) => c.html(<HowItWorks />));
-app.get("/privacy", (c) => c.html(<Privacy />));
-app.get("/terms", (c) => c.html(<Terms />));
+app.get("/how-it-works", async (c) => c.html(<HowItWorks stats={await homeStats(c.env.DB)} />));
+app.get("/privacy", async (c) => c.html(<Privacy stats={await homeStats(c.env.DB)} />));
+app.get("/terms", async (c) => c.html(<Terms stats={await homeStats(c.env.DB)} />));
 
 // ---- Contact ----
 app.get("/contact", (c) => c.html(<Contact data={emptyContact()} errors={{}} siteKey={c.env.TURNSTILE_SITE_KEY} />));

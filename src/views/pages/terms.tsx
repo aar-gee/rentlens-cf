@@ -1,11 +1,12 @@
 import type { FC } from "hono/jsx";
+import type { HomeStats } from "../../data/stats";
 import { Layout } from "../layout";
 import { Header } from "../components/header";
 import { Footer } from "../components/footer";
 import { ContributeCTA } from "../components/contribute-cta";
 import { PolicyHero, PolicySection } from "./privacy";
 
-export const Terms: FC = () => (
+export const Terms: FC<{ stats: HomeStats }> = ({ stats }) => (
   <Layout
     meta={{
       title: "Terms of use — RentLens",
@@ -41,8 +42,8 @@ export const Terms: FC = () => (
           <PolicySection num="02" title="Preview, not production">
             <div class="space-y-4 text-base text-ink-mute leading-relaxed">
               <p>
-                RentLens is currently in preview. The site is functional and submissions persist in Cloudflare D1, but
-                we make no uptime, availability, or data-retention promises in this state.
+                RentLens is currently in preview. The site is functional and submissions are stored securely, but we
+                make no uptime, availability, or data-retention promises in this state.
               </p>
               <p>As the product matures, this section will be updated.</p>
             </div>
@@ -142,7 +143,7 @@ export const Terms: FC = () => (
           </PolicySection>
         </div>
       </section>
-      <ContributeCTA />
+      <ContributeCTA stats={stats} />
     </main>
     <Footer />
   </Layout>

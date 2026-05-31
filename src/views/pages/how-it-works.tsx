@@ -1,4 +1,5 @@
 import type { FC, PropsWithChildren } from "hono/jsx";
+import type { HomeStats } from "../../data/stats";
 import { Layout } from "../layout";
 import { Header } from "../components/header";
 import { Footer } from "../components/footer";
@@ -45,7 +46,7 @@ const FaqItem: FC<{ q: string; a: string }> = ({ q, a }) => (
   </details>
 );
 
-export const HowItWorks: FC = () => (
+export const HowItWorks: FC<{ stats: HomeStats }> = ({ stats }) => (
   <Layout
     meta={{
       title: "How it works — RentLens",
@@ -338,7 +339,7 @@ export const HowItWorks: FC = () => (
         </div>
       </section>
 
-      <ContributeCTA />
+      <ContributeCTA stats={stats} />
     </main>
     <Footer />
   </Layout>

@@ -1,4 +1,5 @@
 import type { FC, PropsWithChildren } from "hono/jsx";
+import type { HomeStats } from "../../data/stats";
 import { Layout } from "../layout";
 import { Header } from "../components/header";
 import { Footer } from "../components/footer";
@@ -75,7 +76,7 @@ export const PolicyHero: FC<{ eyebrow: string; intro: string; children: unknown 
   </section>
 );
 
-export const Privacy: FC = () => (
+export const Privacy: FC<{ stats: HomeStats }> = ({ stats }) => (
   <Layout
     meta={{
       title: "Privacy — RentLens",
@@ -100,38 +101,38 @@ export const Privacy: FC = () => (
           <PolicySection num="02" title="What we don't collect">
             <BulletList bullets={dontCollectBullets} />
           </PolicySection>
-          <PolicySection num="03" title="Where the data lives">
+          <PolicySection num="03" title="Public aggregates, private records">
             <div class="space-y-4 text-base text-ink-mute leading-relaxed">
               <p>
-                <span class="text-ink font-medium">Preview (right now):</span> submissions are stored in Cloudflare D1
-                (SQLite) and persist across deploys. The founder also gets an email per submission so nothing is lost.
+                What's public is the aggregate — the medians and ranges on a society's page. Your individual report is
+                never shown on its own; it only ever appears blended into those numbers.
               </p>
               <p>
-                <span class="text-ink font-medium">Production:</span> resident-reported data lives in D1, with any
-                verification attachments in encrypted object storage (Cloudflare R2). Aggregates are public; raw
-                contributor records are not.
+                Any verification document you choose to send stays private and encrypted, and is never published. We
+                keep contributor records only as long as they're useful to a society's aggregate, and request logs (IP,
+                user-agent) only short-term for spam and abuse defense. You can ask us to delete your data at any time —
+                see below.
               </p>
             </div>
           </PolicySection>
           <PolicySection num="04" title="Cookies and analytics">
             <div class="space-y-4 text-base text-ink-mute leading-relaxed">
-              <p>Preview has no analytics wired up at all. No cookies are set beyond what your browser does on its own.</p>
+              <p>RentLens sets no analytics or advertising cookies and runs no third-party trackers.</p>
               <p>
-                When analytics is added it will be a privacy-safe, aggregate-only setup. Page-level counts, no per-user
-                tracking, no third-party trackers, no behavioural profiles.
+                If analytics is ever added it will be privacy-safe and aggregate-only — page-level counts, no per-user
+                tracking, no behavioural profiles.
               </p>
             </div>
           </PolicySection>
           <PolicySection num="05" title="Email">
             <div class="space-y-4 text-base text-ink-mute leading-relaxed">
               <p>
-                The preview emails the founder a copy of each submission via Resend so nothing is lost. Those emails
-                contain only the submitted fields, not your IP, not anything we didn't explicitly ask for.
+                If you give us an email, it's used only to answer a question about your submission or to let you know
+                when your society's page has data. Nothing else.
               </p>
               <p>
-                Contributor email addresses are never shared with third parties, never sold, never bundled into a list.
-                They exist so we can answer questions about a submission or notify you when your society's page gets
-                unlocked.
+                Contributor email addresses are never shared with third parties, never sold, and never bundled into a
+                marketing list.
               </p>
             </div>
           </PolicySection>
@@ -155,13 +156,13 @@ export const Privacy: FC = () => (
                 what we collect. Anything new gets called out in the next site update.
               </p>
               <p class="num text-xs text-ink-faint tracking-[0.14em] uppercase pt-6 border-t border-hairline mt-8">
-                Last updated: 14 May 2026
+                Last updated: 31 May 2026
               </p>
             </div>
           </PolicySection>
         </div>
       </section>
-      <ContributeCTA />
+      <ContributeCTA stats={stats} />
     </main>
     <Footer />
   </Layout>
