@@ -6,6 +6,8 @@ All notable changes to RentLens are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-05-31
+
 ### Added
 
 - Honesty pipeline: real reports now flow into the catalog (RENT-tbhkjjfy).
