@@ -1,6 +1,5 @@
 import type { FC } from "hono/jsx";
 import type { Society } from "../../data/society";
-import { PAGE_SIZE } from "../../data/society";
 import type { HomeStats } from "../../data/stats";
 import { Layout } from "../layout";
 import { Header } from "../components/header";
@@ -52,48 +51,13 @@ const IntroSection: FC<{ stats: HomeStats }> = ({ stats }) => (
   </section>
 );
 
-// SocietyCardsFragment — the raw card rows returned by GET /societies/page.
-// This is an HTMX fragment: no layout, no wrapper section — just the cards
-// plus the next "Load more" trigger (or nothing when hasMore=false). The
-// fragment is appended into #societies-grid by hx-swap="beforeend".
-export const SocietyCardsFragment: FC<{ societies: Society[]; nextOffset: number; hasMore: boolean }> = ({
-  societies,
-  nextOffset,
-  hasMore,
-}) => (
-  <>
-    {societies.map((soc) => (
-      <SocietyCard soc={soc} />
-    ))}
-    {hasMore ? (
-      // The sentinel div carries the HTMX load-more trigger. hx-swap="outerHTML"
-      // replaces this element entirely so each batch appends its own sentinel or
-      // removes it when the last page lands. hx-trigger="revealed" fires when
-      // the element scrolls into the viewport — automatic infinite scroll with
-      // no click needed. Falls back gracefully: without JS the sentinel is
-      // inert (no href CTA needed because the initial 24 cards already cover
-      // the catalog at current scale; this can be revisited once we exceed ~200
-      // societies and want a no-JS fallback paginated link).
-      <div
-        id="load-more-trigger"
-        hx-get={`/societies/page?offset=${nextOffset}`}
-        hx-trigger="revealed"
-        hx-target="this"
-        hx-swap="outerHTML"
-        class="w-full flex justify-center py-6"
-      >
-        <span class="num text-xs text-ink-faint tracking-[0.12em] uppercase">Loading more...</span>
-      </div>
-    ) : null}
-  </>
-);
-
 // BrowseSearch — spelling-tolerant search box on the directory page. Same
 // HTMX autocomplete as the homepage hero (GET /search -> SearchResults dropdown,
-// fuzzy-matched on name/alias/locality/builder), so people can jump straight to
-// a society from the browse page instead of scrolling the whole grid.
+// fuzzy-matched on name/alias/locality/builder). The <section> carries
+// `relative z-30` so its absolute results dropdown stacks ABOVE the cards below
+// (without it the dropdown rendered behind the grid).
 const BrowseSearch: FC = () => (
-  <section class="px-5 sm:px-8 pb-6 sm:pb-8">
+  <section class="relative z-30 px-5 sm:px-8 pb-5 sm:pb-6">
     <div class="max-w-wide mx-auto">
       <form class="relative max-w-[560px]" onsubmit="return false;">
         <div class="search-shell bg-white border border-hairline flex items-center pl-4 pr-2 py-2 sm:py-2.5 gap-2 sm:gap-3">
@@ -119,41 +83,107 @@ const BrowseSearch: FC = () => (
   </section>
 );
 
-// Grid — the wrapping section for the /societies page. Renders the first page
-// of cards (page 1, offset 0) plus the HTMX load-more sentinel if there are
-// more pages. The grid container id="societies-grid" is the hx-target for
-// subsequent page fetches.
-const Grid: FC<{ societies: Society[]; hasMore: boolean }> = ({ societies, hasMore }) => (
-  <section class="px-5 sm:px-8 pb-16 sm:pb-20">
-    <div class="max-w-wide mx-auto">
-      <div id="societies-grid" class="flex flex-wrap gap-4 justify-center sm:justify-start">
-        <AddSocietyCard />
-        <SocietyCardsFragment societies={societies} nextOffset={PAGE_SIZE} hasMore={hasMore} />
-      </div>
+// AreaFilter — locality filter chips. "All" + each area (most-populated first),
+// each a link to ?area=… (which resets to page 1). Active chip is highlighted.
+const chipClass = (active: boolean) =>
+  "num text-xs tracking-[0.04em] px-3 py-1.5 border transition-colors no-underline " +
+  (active ? "border-ink bg-ink text-parchment" : "border-hairline text-ink-mute hover:border-ink-mute");
+const AreaFilter: FC<{ areas: { locality: string; count: number }[]; active: string }> = ({ areas, active }) => (
+  <section class="px-5 sm:px-8 pb-6">
+    <div class="max-w-wide mx-auto flex flex-wrap gap-2">
+      <a href="/societies" class={chipClass(active === "")}>
+        All
+      </a>
+      {areas.map((a) => (
+        <a href={`/societies?area=${encodeURIComponent(a.locality)}`} class={chipClass(active === a.locality)}>
+          {a.locality} <span class={active === a.locality ? "text-parchment/70" : "text-ink-faint"}>{a.count}</span>
+        </a>
+      ))}
     </div>
   </section>
 );
 
-export const SocietiesIndex: FC<{ societies: Society[]; hasMore: boolean; allForJSONLD: Society[]; stats: HomeStats }> =
-  ({ societies, hasMore, allForJSONLD, stats }) => (
-    <Layout
-      meta={{
-        title: "All societies — RentLens",
-        description: `Browse resident-reported rent, maintenance, and deposit data across ${fmt(
-          stats.societies,
-        )} apartment societies in Bengaluru. Real numbers from people who live there.`,
-        path: "/societies",
-        ogType: "website",
-        jsonLd: societiesJSONLD(allForJSONLD),
-      }}
-    >
-      <Header />
-      <main>
-        <IntroSection stats={stats} />
-        <BrowseSearch />
-        <Grid societies={societies} hasMore={hasMore} />
-        <ContributeCTA stats={stats} />
-      </main>
-      <Footer />
-    </Layout>
+// Grid — the current page's society cards. AddSocietyCard leads only on the
+// unfiltered first page so it isn't repeated on every page / filter view.
+const Grid: FC<{ societies: Society[]; showAdd: boolean }> = ({ societies, showAdd }) => (
+  <section class="px-5 sm:px-8 pb-10 sm:pb-12">
+    <div class="max-w-wide mx-auto">
+      {societies.length === 0 ? (
+        <p class="text-ink-mute">No societies in this area yet. Try another area, or add yours.</p>
+      ) : (
+        <div class="flex flex-wrap gap-4 justify-center sm:justify-start">
+          {showAdd ? <AddSocietyCard /> : null}
+          {societies.map((soc) => (
+            <SocietyCard soc={soc} />
+          ))}
+        </div>
+      )}
+    </div>
+  </section>
+);
+
+// Pagination — classic Prev / page-indicator / Next, preserving the active area
+// filter. Plain server-rendered links (full page nav): robust, no JS, no scroll
+// jank. Hidden when there's only one page.
+const pageHref = (page: number, area: string) =>
+  `/societies?page=${page}${area ? `&area=${encodeURIComponent(area)}` : ""}`;
+const PAGER_ON = "num text-xs tracking-[0.08em] uppercase px-4 py-2 border border-hairline hover:border-ink transition-colors no-underline text-ink";
+const PAGER_OFF = "num text-xs tracking-[0.08em] uppercase px-4 py-2 border border-hairline text-ink-faint/40 cursor-default select-none";
+const Pagination: FC<{ page: number; totalPages: number; area: string }> = ({ page, totalPages, area }) => {
+  if (totalPages <= 1) return <></>;
+  return (
+    <section class="px-5 sm:px-8 pb-16 sm:pb-20">
+      <div class="max-w-wide mx-auto flex items-center justify-between gap-4">
+        {page > 1 ? (
+          <a href={pageHref(page - 1, area)} class={PAGER_ON}>
+            ← Prev
+          </a>
+        ) : (
+          <span class={PAGER_OFF}>← Prev</span>
+        )}
+        <span class="num text-xs text-ink-mute tracking-[0.08em] uppercase">
+          Page {page} of {totalPages}
+        </span>
+        {page < totalPages ? (
+          <a href={pageHref(page + 1, area)} class={PAGER_ON}>
+            Next →
+          </a>
+        ) : (
+          <span class={PAGER_OFF}>Next →</span>
+        )}
+      </div>
+    </section>
   );
+};
+
+export const SocietiesIndex: FC<{
+  societies: Society[];
+  page: number;
+  totalPages: number;
+  area: string;
+  areas: { locality: string; count: number }[];
+  stats: HomeStats;
+}> = ({ societies, page, totalPages, area, areas, stats }) => (
+  <Layout
+    meta={{
+      title: area ? `Societies in ${area} — RentLens` : "All societies — RentLens",
+      description: `Browse resident-reported rent, maintenance, and deposit data across ${fmt(
+        stats.societies,
+      )} apartment societies in Bengaluru. Real numbers from people who live there.`,
+      path: "/societies",
+      ogType: "website",
+      jsonLd: societiesJSONLD(societies),
+    }}
+  >
+    <Header />
+    <main>
+      <IntroSection stats={stats} />
+      <BrowseSearch />
+      <AreaFilter areas={areas} active={area} />
+      <Grid societies={societies} showAdd={page === 1 && area === ""} />
+      <Pagination page={page} totalPages={totalPages} area={area} />
+      <ContributeCTA stats={stats} />
+    </main>
+    <Footer />
+  </Layout>
+);

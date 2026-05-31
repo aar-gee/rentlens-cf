@@ -115,10 +115,27 @@ export function listAll(db: D1Database): Promise<Society[]> {
   return loadPublished(db, false);
 }
 
-// countPublished returns the number of published societies (dashboard stat).
-export async function countPublished(db: D1Database): Promise<number> {
-  const r = await db.prepare(`SELECT count(*) AS n FROM societies WHERE status='published'`).first<{ n: number }>();
+// countPublished returns the number of published societies (dashboard stat),
+// optionally scoped to a locality (for the browse-page area filter + paging).
+export async function countPublished(db: D1Database, area = ""): Promise<number> {
+  const stmt = area
+    ? db.prepare(`SELECT count(*) AS n FROM societies WHERE status='published' AND locality = ?`).bind(area)
+    : db.prepare(`SELECT count(*) AS n FROM societies WHERE status='published'`);
+  const r = await stmt.first<{ n: number }>();
   return r?.n ?? 0;
+}
+
+// listLocalities returns the distinct published-society localities with counts,
+// most-populated first — powers the /societies area filter chips.
+export async function listLocalities(db: D1Database): Promise<{ locality: string; count: number }[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT locality, COUNT(*) AS count FROM societies
+        WHERE status='published' AND locality <> ''
+        GROUP BY locality ORDER BY count DESC, locality ASC`,
+    )
+    .all<{ locality: string; count: number }>();
+  return results;
 }
 
 // publishedSlugs returns every published society slug (merge-target dropdown).
@@ -244,19 +261,22 @@ export const PAGE_SIZE = 24;
 export async function listPublishedPage(
   db: D1Database,
   offset: number,
+  area = "",
 ): Promise<{ societies: Society[]; hasMore: boolean }> {
   // Fetch one extra row so we can detect a next page without a separate
   // COUNT(*) query.
   const fetchLimit = PAGE_SIZE + 1;
+  const filter = area ? " AND s.locality = ?" : "";
+  const binds: unknown[] = area ? [area, fetchLimit, offset] : [fetchLimit, offset];
   const { results } = await db
     .prepare(
       `SELECT ${SELECT_COLS}
        FROM societies s
-       WHERE s.status = 'published'
+       WHERE s.status = 'published'${filter}
        ORDER BY COALESCE(s.report_count, -1) DESC, s.name ASC
        LIMIT ? OFFSET ?`,
     )
-    .bind(fetchLimit, offset)
+    .bind(...binds)
     .all<SocietyRow>();
   const hasMore = results.length > PAGE_SIZE;
   const societies = results.slice(0, PAGE_SIZE).map(rowToSociety);
