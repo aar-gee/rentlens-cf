@@ -35,6 +35,15 @@ All notable changes to RentLens are documented here. Format follows
   On-site `/notes` blog (TS-module posts, Article JSON-LD) with a launch
   post on asking-vs-actual Bengaluru rents. (RENT-dbimvled, -bbseylts,
   -xjsckcob, -jritchmx, -tpfunlby, -aruxinbc.)
+- Builders roster expansion + enrichment (RENT-vuidxkts). New canonical
+  source of truth `seed/builders.csv` + generator `gen-builders-roster.ts`
+  emit migration `0012_builders_roster.sql` (replaces the stale hand-curated
+  array in `gen-builders.ts` as the roster's authority). Roster grows to 30
+  web-validated Bengaluru builders (19 tier-A featured, 11 tier-B searchable);
+  new tier-A entrants Sumadhura, Sterling, Bhartiya City, Lodha, Birla Estates.
+  Builders gain `website_url` / `logo_url` (faithful display) and
+  `delivery_risk` / `risk_note` (trust signal). New `builder_aliases` table so
+  renamed builders and sub-brands resolve to the canonical row.
 - Inline rental-agreement upload on Step 1 of /submit
   (RENT-tscofnqc completion). New POST `/submit/stage-proof` accepts a
   multipart file, writes to R2 under `staged/<rand>.<ext>`, and returns

@@ -2,7 +2,21 @@
 // also powers the admin create-society builder select (RENT-ighyhmgc).
 import { newShortID } from "../lib/id";
 
-export type Builder = { id: string; name: string; slug: string; tier: string };
+export type Builder = {
+  id: string;
+  name: string;
+  slug: string;
+  tier: string;
+  // Enrichment from migration 0011 (faithful display + trust signal). website_url
+  // / logo_url drive the builder's display; delivery_risk flags builders kept
+  // searchable but not trusted enough to feature (risk_note explains why).
+  website_url: string;
+  logo_url: string;
+  delivery_risk: number;
+  risk_note: string;
+};
+
+const BUILDER_COLS = "id, name, slug, tier, website_url, logo_url, delivery_risk, risk_note";
 
 const slugify = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -10,7 +24,7 @@ const slugify = (s: string) =>
 // listBuilders returns all builders, Category-A first then alphabetical.
 export async function listBuilders(db: D1Database): Promise<Builder[]> {
   const { results } = await db
-    .prepare(`SELECT id, name, slug, tier FROM builders ORDER BY (tier = 'A') DESC, name`)
+    .prepare(`SELECT ${BUILDER_COLS} FROM builders ORDER BY (tier = 'A') DESC, name`)
     .all<Builder>();
   return results;
 }
@@ -25,5 +39,5 @@ export async function createBuilder(db: D1Database, name: string, tier: string):
     .prepare(`INSERT INTO builders (id, name, slug, tier) VALUES (?, ?, ?, ?) ON CONFLICT(name) DO NOTHING`)
     .bind(newShortID(), name, slugify(name), t)
     .run();
-  return db.prepare(`SELECT id, name, slug, tier FROM builders WHERE name = ?`).bind(name).first<Builder>();
+  return db.prepare(`SELECT ${BUILDER_COLS} FROM builders WHERE name = ?`).bind(name).first<Builder>();
 }

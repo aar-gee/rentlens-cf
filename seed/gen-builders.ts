@@ -1,3 +1,9 @@
+// HISTORICAL — generated migrations/0003_builders.sql (already applied to prod;
+// never regenerate). The CURRENT builders roster lives in seed/builders.csv +
+// seed/gen-builders-roster.ts, which emit the append-only 0011 migration with
+// the validated 30-builder roster, tiers, aliases, and enrichment columns. Edit
+// the CSV, not the CATEGORY_A array below.
+//
 // Generates migrations/0003_builders.sql: a builders table (id, name, slug,
 // tier), seeded from a curated Category-A list + every builder already present
 // in societies.csv, then backfills societies.builder_id by name match.
