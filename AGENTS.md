@@ -2,7 +2,7 @@
 
 This file exists so agents that look for `AGENTS.md` (Codex, Cursor, others) find the same contract that Claude Code agents follow.
 
-**The canonical engineering practices live in [`CLAUDE.md`](./CLAUDE.md).** Read it before touching this repo. fp issue-tracking rules live in [`FP_CLAUDE.md`](./FP_CLAUDE.md) and are pulled into `CLAUDE.md` via `@FP_CLAUDE.md`.
+**The canonical engineering practices live in [`CLAUDE.md`](./CLAUDE.md).** Read it before touching this repo. fp issue-tracking rules live in [`FP_CLAUDE.md`](./FP_CLAUDE.md) and are pulled into `CLAUDE.md` via `@FP_CLAUDE.md`. **Product / brand / marketing context lives in [`HANDOFF.md`](./HANDOFF.md)** — read that if you're writing outward-facing copy, emails, social posts, or any other publish-facing artifact.
 
 Short version of the non-negotiables (the full reasoning is in `CLAUDE.md`):
 
