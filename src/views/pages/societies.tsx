@@ -77,7 +77,7 @@ const BrowseSearch: FC = () => (
             autocomplete="off"
           />
         </div>
-        <div id="browse-search-results" class="absolute left-0 right-0 top-full mt-1 z-50 text-left" />
+        <div id="browse-search-results" data-search-results class="absolute left-0 right-0 top-full mt-1 z-50 text-left" />
       </form>
     </div>
   </section>
@@ -133,7 +133,7 @@ const Pagination: FC<{ page: number; totalPages: number; area: string }> = ({ pa
   if (totalPages <= 1) return <></>;
   return (
     <section class="px-5 sm:px-8 pb-16 sm:pb-20">
-      <div class="max-w-wide mx-auto flex items-center justify-between gap-4">
+      <div class="max-w-wide mx-auto flex items-center justify-center gap-5 sm:gap-8">
         {page > 1 ? (
           <a href={pageHref(page - 1, area)} class={PAGER_ON}>
             ← Prev

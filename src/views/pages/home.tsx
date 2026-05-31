@@ -107,7 +107,7 @@ const HeroSection: FC = () => (
               Search
             </button>
           </div>
-          <div id="search-results" class="absolute left-0 right-0 top-full mt-1 z-50 text-left" />
+          <div id="search-results" data-search-results class="absolute left-0 right-0 top-full mt-1 z-50 text-left" />
         </div>
       </form>
       <div class="rise rise-5 mt-7 sm:mt-9 space-y-2 sm:space-y-3">

@@ -789,3 +789,26 @@ export const SUBMIT_NUDGE_SCRIPT = `
   });
 })();
 `;
+
+// SEARCH_CLOSE_SCRIPT — closes the autocomplete dropdown of the homepage / browse
+// search bars (the [data-search-results] containers, fed by HTMX GET /search)
+// when the user clicks outside the search form or presses Escape. Without this
+// the results list lingers after a click elsewhere. No-op on pages with no such
+// container. (The /submit picker has its own close logic via [data-picker-input].)
+export const SEARCH_CLOSE_SCRIPT = `
+(function() {
+  function boxes() { return document.querySelectorAll('[data-search-results]'); }
+  document.addEventListener('click', function(e) {
+    boxes().forEach(function(box) {
+      if (!box.innerHTML.trim()) return;
+      var form = box.closest('form');
+      if (form && form.contains(e.target)) return; // click in the input or a result row
+      box.innerHTML = '';
+    });
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Escape') return;
+    boxes().forEach(function(box) { box.innerHTML = ''; });
+  });
+})();
+`;

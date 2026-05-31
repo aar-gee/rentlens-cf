@@ -11,6 +11,7 @@ import {
   EMAIL_VALIDATE_SCRIPT,
   PROOF_UPLOAD_SCRIPT,
   STAGE_PROOF_SCRIPT,
+  SEARCH_CLOSE_SCRIPT,
 } from "./scripts";
 
 // Meta carries page-level SEO/social metadata into the Layout.
@@ -51,6 +52,7 @@ const GlobalScripts: FC = () => (
     <script dangerouslySetInnerHTML={{ __html: EMAIL_VALIDATE_SCRIPT }} />
     <script dangerouslySetInnerHTML={{ __html: PROOF_UPLOAD_SCRIPT }} />
     <script dangerouslySetInnerHTML={{ __html: STAGE_PROOF_SCRIPT }} />
+    <script dangerouslySetInnerHTML={{ __html: SEARCH_CLOSE_SCRIPT }} />
   </>
 );
 
