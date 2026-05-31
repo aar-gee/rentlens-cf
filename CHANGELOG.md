@@ -9,9 +9,10 @@ All notable changes to RentLens are documented here. Format follows
 ### Added
 
 - Honesty pipeline: real reports now flow into the catalog (RENT-tbhkjjfy).
-  (A) Society detail pages are D1-backed — the route overlays the live DB row's
-  headline numbers + provenance onto the curated bundle, so they reflect the
-  grounded asking rents (no more fixture/browse divergence). (B) Submissions are
+  (A) Society detail pages are D1-backed — curated pages overlay the live DB row,
+  and every non-curated society with grounded medians now renders the same honest
+  estimate detail (per-BHK cards + maintenance/deposit from rent_observations)
+  instead of a bare "not enough reports" page, so detail matches the browse cards. (B) Submissions are
   publishable: admin Publish/Reject on the submissions queue; publishing
   recomputes the society's per-BHK medians/ranges + report_count from published
   non-spam reports and promotes provenance to `resident` once ≥3 reports exist
