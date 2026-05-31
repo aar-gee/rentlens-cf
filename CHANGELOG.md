@@ -8,6 +8,26 @@ All notable changes to RentLens are documented here. Format follows
 
 ### Added
 
+- Grounded asking-rent dataset wired into the catalog (RENT-dqfzfbeq).
+  New `rent_observations` table (per-society/BHK asking low/median/high +
+  maintenance + deposit + listing-count basis + confidence + sources),
+  seeded from `seed/rent-observations.csv` (generator
+  `gen-rent-observations.ts`) with 58 web-researched observations across 34
+  societies. Society headline medians/ranges now reflect current listings and
+  flip to `provenance='estimated'`. Data-integrity corrections: fabricated
+  2BHK numbers NULLed on 10 villa/3BHK-only societies; mis-seeded localities
+  fixed (Brigade Caladium→Hebbal, After The Rain & Northridge→Yelahanka). Two
+  unconfirmed seed rows flagged for review (not auto-changed).
+- Spelling-tolerant search (RENT-wmnahjaj). `/search` autocomplete now matches
+  through typos and word-order/spacing differences via normalized tokens +
+  trigram Dice + Levenshtein (`src/lib/fuzzy.ts`), ranked by match quality,
+  and extends the match surface to locality + builder (was name+aliases
+  substring only). "sobha dreem acres", "embassy pristne" now resolve.
+- Paginated `/societies` browse grid (RENT-uwfksoeg). First 24 cards
+  server-rendered, the rest infinite-scroll via an HTMX `revealed` sentinel
+  hitting `GET /societies/page?offset=`; JSON-LD ItemList capped at 50
+  (sitemap remains the full SEO surface). Keeps the catalog page fast as
+  societies grow.
 - Society waitlist + share-after-submit (RENT-swwqpyth). Sparse society
   pages now carry a "get notified when this society has data" email
   capture (HTMX inline, honeypot + per-IP daily cap for anti-spam, no
