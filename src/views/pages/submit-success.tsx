@@ -3,16 +3,22 @@ import { Layout } from "../layout";
 import { Header } from "../components/header";
 import { Footer } from "../components/footer";
 import { PreviewBanner } from "./submit";
+import { ShareButtons } from "../components/share-row";
 import type { Submission } from "../../data/submission";
+
+const HOST = "https://rentlens.fyi";
 
 const browseHref = (sub: Submission) => (sub.societySlug !== "" ? `/societies/${sub.societySlug}` : "/");
 
-function shareMailto(sub: Submission): string {
-  const name = sub.societyName || "your society";
-  const subject = `RentLens — see real rents for ${name}`;
-  const body = `I just shared my rent on RentLens — it helps future renters of ${name}. Add yours: https://rentlens.fyi/submit`;
-  return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-}
+// Share-after-submit: absolute URL + message for the centered share block.
+// Points at the society page when we have one (a neighbour lands on real
+// numbers + an obvious "add yours"); otherwise the submit form.
+const shareUrl = (sub: Submission) =>
+  sub.societySlug !== "" ? `${HOST}/societies/${sub.societySlug}` : `${HOST}/submit`;
+const shareText = (sub: Submission) => {
+  const name = sub.societyName || "my society";
+  return `I just added my rent to RentLens for ${name} — real resident-reported numbers, not asking prices. Add yours:`;
+};
 
 const SuccessAction: FC<{ title: string; blurb: string; href: string }> = ({ title, blurb, href }) => (
   <a href={href} class="block bg-white border border-hairline p-5 hover:border-ink transition-colors group">
@@ -184,22 +190,28 @@ export const SubmitSuccess: FC<{ sub: Submission }> = ({ sub }) => (
             </p>
           </div>
         </div>
-        <div class="mt-12 sm:mt-14 grid sm:grid-cols-3 gap-3 sm:gap-4 max-w-[680px] mx-auto text-left">
+        <div class="mt-12 sm:mt-14 grid sm:grid-cols-2 gap-3 sm:gap-4 max-w-[560px] mx-auto text-left">
           {sub.pendingSocietyId !== "" ? (
             <SuccessAction
               title="Browse other societies"
               blurb="See rents from places already in the catalog while we add yours."
-              href="/"
+              href="/societies"
             />
           ) : (
             <SuccessAction title="Browse your society" blurb="See the page you just contributed to." href={browseHref(sub)} />
           )}
           <SuccessAction title="Submit another report" blurb="Got a friend's place to add? Or a previous lease?" href="/submit" />
-          <SuccessAction
-            title="Share with a neighbour"
-            blurb={`Email someone else from ${sub.societyName} so they can contribute too.`}
-            href={shareMailto(sub)}
-          />
+        </div>
+        {/* Share-after-submit (RENT-swwqpyth): the moment they're most engaged.
+            One report is an anecdote; a neighbour's report makes it a median. */}
+        <div class="mt-10 pt-8 border-t border-hairline max-w-[560px] mx-auto">
+          <div class="eyebrow mb-1.5">/ Pass it on</div>
+          <p class="text-sm text-ink-mute leading-relaxed mb-4">
+            Know a neighbour at {sub.societyName || "your society"}? One more report turns your number into a median.
+          </p>
+          <div class="flex justify-center sm:justify-start">
+            <ShareButtons url={shareUrl(sub)} text={shareText(sub)} subject={`Real rents for ${sub.societyName || "your society"}`} />
+          </div>
         </div>
         <p class="mt-12 text-xs text-ink-faint max-w-[480px] mx-auto leading-relaxed">
           We'll review submissions before publishing them. Your identity is never shown publicly.

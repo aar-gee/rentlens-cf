@@ -6,6 +6,7 @@ import type { AdminAction } from "../../data/moderation";
 import type { ContactSubmission } from "../../data/contact";
 import type { Builder } from "../../data/builders";
 import type { SubmissionListRow } from "../../data/submission";
+import type { WaitlistGroup } from "../../data/waitlist";
 
 // queueCounts — the dashboard numbers in one place.
 export type QueueCounts = {
@@ -73,6 +74,7 @@ const AdminBody: FC<PropsWithChildren<{ active: string }>> = ({ active, children
             <NavLink path="/pending-societies" label="Societies" active={active === "societies"} />
             <NavLink path="/pending-areas" label="Areas" active={active === "areas"} />
             <NavLink path="/submissions" label="Submissions" active={active === "submissions"} />
+            <NavLink path="/waitlist" label="Waitlist" active={active === "waitlist"} />
             <NavLink path="/messages" label="Messages" active={active === "messages"} />
             <NavLink path="/builders" label="Builders" active={active === "builders"} />
           </nav>
@@ -922,6 +924,57 @@ export const ProofViewer = (row: ProofViewerRow, rawHref: string) => (
 );
 
 // ---- Action result (flash) ----
+// ---- Waitlist (RENT-swwqpyth) ----
+const WaitlistRow: FC<{ g: WaitlistGroup; last: boolean }> = ({ g, last }) => (
+  <div class={`p-5 sm:p-6 ${last ? "" : "border-b border-hairline"} flex flex-wrap items-center justify-between gap-4`}>
+    <div class="min-w-0">
+      <a href={`/societies/${g.societySlug}`} class="text-[15px] font-medium text-ink hover:text-marigold-deep link-u">
+        {g.societyName || g.societySlug}
+      </a>
+      <div class="num text-[11px] text-ink-faint tracking-[0.1em] uppercase mt-1.5">
+        {pluralize(g.total, "signup")} · {g.pending} unnotified · latest {fmtDate(g.latest)}
+      </div>
+    </div>
+    {g.pending > 0 ? (
+      <form action={adminHref(`/waitlist/${g.societySlug}/notify`)} method="post">
+        <button
+          type="submit"
+          class="bg-ink text-parchment px-4 py-2.5 text-xs font-medium tracking-tight hover:bg-ink/90 transition-colors"
+        >
+          Notify {g.pending} →
+        </button>
+      </form>
+    ) : (
+      <span class="num text-[10px] text-success tracking-[0.14em] uppercase">All notified</span>
+    )}
+  </div>
+);
+
+export const WaitlistQueue = (rows: WaitlistGroup[]) => (
+  <AdminBase title="Waitlist" active="waitlist">
+    <main class="px-5 sm:px-8 py-12 sm:py-16">
+      <div class="max-w-wide mx-auto">
+        <QueueHeader
+          title="Waitlist"
+          blurb="People who asked to be emailed when a sparse society gets real resident data. 'Notify' sends the one-time 'now has data' email to everyone not yet notified for that society, then marks them done. Send it once you're confident the society's page is worth their click."
+        />
+        {rows.length === 0 ? (
+          <EmptyQueue
+            headline="No one waiting yet"
+            blurb="When a visitor leaves their email on a sparse society page, the demand shows up here, grouped by society."
+          />
+        ) : (
+          <div class="bg-white border border-hairline overflow-hidden">
+            {rows.map((g, i) => (
+              <WaitlistRow g={g} last={i === rows.length - 1} />
+            ))}
+          </div>
+        )}
+      </div>
+    </main>
+  </AdminBase>
+);
+
 export const ActionResult = (verb: string, summary: string, backPath: string) => (
   <AdminBase title={verb} active="">
     <main class="px-5 sm:px-8 py-16 sm:py-24">

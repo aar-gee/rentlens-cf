@@ -13,6 +13,8 @@ import { SocietiesIndex } from "./views/pages/societies";
 import { About } from "./views/pages/about";
 import { NotesIndex, NoteArticle } from "./views/pages/notes";
 import { notesByDate, noteBySlug } from "./data/notes";
+import { joinWaitlist } from "./data/waitlist";
+import { WaitlistInner } from "./views/components/waitlist-form";
 import { robotsTxt, buildSitemap } from "./lib/seo";
 import { societyDetailBySlug } from "./data/society-detail";
 import { Contact, ContactSuccess } from "./views/pages/contact";
@@ -1107,6 +1109,42 @@ app.post("/contact", async (c) => {
   const sub = await insertContact(c.env.DB, form);
   c.executionCtx.waitUntil(notifyContact(c.env, sub));
   return c.html(<ContactSuccess category={form.category} />);
+});
+
+// ---- Waitlist (RENT-swwqpyth) ----
+// POST /waitlist — "email me when this society has data" capture from sparse
+// society pages. Returns an HTMX fragment (WaitlistInner) swapped into
+// #waitlist-box. Anti-spam: honeypot `company` field (bots fill it → silent
+// success) + per-IP daily cap inside joinWaitlist. No Turnstile (the sparse
+// page doesn't load the widget; the honeypot + rate cap suffice for a low-
+// stakes email capture).
+app.post("/waitlist", async (c) => {
+  const body = await c.req.parseBody();
+  const email = String(body["email"] ?? "").trim();
+  const slug = String(body["society_slug"] ?? "").trim();
+  const name = String(body["society_name"] ?? "").trim();
+  const honeypot = String(body["company"] ?? "").trim();
+
+  // Honeypot tripped → act successful, store nothing.
+  if (honeypot !== "") return c.html(<WaitlistInner slug={slug} name={name} done email={email} />);
+
+  if (slug === "") {
+    // No society context — shouldn't happen from the real form. Fail soft.
+    return c.html(<WaitlistInner slug={slug} name={name} error="Something went wrong — please reload and try again." />, 422);
+  }
+  if (!isValidEmail(email)) {
+    return c.html(<WaitlistInner slug={slug} name={name} error="Please enter a valid email address." />, 422);
+  }
+  const ipAddress = getClientIp((n) => c.req.header(n));
+  const result = await joinWaitlist(c.env.DB, { email, societySlug: slug, societyName: name, ipAddress });
+  if (result.kind === "rate_limited") {
+    return c.html(
+      <WaitlistInner slug={slug} name={name} error="Too many sign-ups from this network today. Try again tomorrow." />,
+      429,
+    );
+  }
+  // "added" and "already" both land here — idempotent from the user's view.
+  return c.html(<WaitlistInner slug={slug} name={name} done email={email} />);
 });
 
 // Liveness probe — also confirms the D1 binding answers a trivial query.

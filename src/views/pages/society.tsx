@@ -7,6 +7,7 @@ import { Footer } from "../components/footer";
 import { Breadcrumb, type BreadcrumbItem } from "../components/breadcrumb";
 import { ContributeCTA } from "../components/contribute-cta";
 import { ShareRow } from "../components/share-row";
+import { WaitlistBox } from "../components/waitlist-form";
 import { SummaryMetricCard, type SummaryMetricProps } from "../components/summary-metric-card";
 import { RentBreakdownTable } from "../components/rent-breakdown-table";
 import { MaintenanceCard, FurnishingPremiumCard, LeaseNormsCard } from "../components/sidebar-cards";
@@ -494,6 +495,7 @@ export const SocietySparse: FC<{ soc: SocietyRecord }> = ({ soc }) => (
               Submit rent for {soc.name}
               <Arrow />
             </a>
+            <WaitlistBox slug={soc.slug} name={soc.name} />
           </div>
         </div>
       </section>

@@ -2,8 +2,11 @@
 // Port of admin/server.go route table + admin/handlers.go.
 import { Hono } from "hono";
 import { adminAuth } from "./auth";
-import { Dashboard, PendingSocietiesQueue, PendingAreasQueue, MessagesQueue, ActionResult, BuildersPage, SubmissionsQueue, ProofViewer } from "../views/admin/ui";
-import { countPublished, publishedSlugs } from "../data/society";
+import { Dashboard, PendingSocietiesQueue, PendingAreasQueue, MessagesQueue, ActionResult, BuildersPage, SubmissionsQueue, ProofViewer, WaitlistQueue } from "../views/admin/ui";
+import { countPublished, publishedSlugs, getBySlug } from "../data/society";
+import { listWaitlistGrouped, emailsToNotify, markNotified } from "../data/waitlist";
+import { waitlistReadyEmail } from "../views/email/waitlist-email";
+import { sendEmail } from "../lib/email";
 import { listBuilders, createBuilder } from "../data/builders";
 import { CANONICAL_AREAS } from "../data/area";
 import {
@@ -37,6 +40,9 @@ type AdminBindings = {
   ADMIN_USER?: string;
   ADMIN_PASS?: string;
   PROOFS?: R2Bucket;
+  // For the waitlist "now has data" notification (sendEmail no-ops without these).
+  RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
 };
 
 // strict:false so the dashboard matches both the mount root with and without a
@@ -144,6 +150,39 @@ adminApp.get("/pending-areas", async (c) => {
 adminApp.get("/messages", async (c) => {
   const messages = await listContacts(c.env.DB);
   return c.html(MessagesQueue(messages));
+});
+
+// ---- Waitlist (RENT-swwqpyth) ----
+adminApp.get("/waitlist", async (c) => {
+  const rows = await listWaitlistGrouped(c.env.DB);
+  return c.html(WaitlistQueue(rows));
+});
+
+// POST /waitlist/:slug/notify — send the one-time "now has data" email to
+// every un-notified subscriber for this society, then stamp them notified.
+// Reads emails BEFORE marking (markNotified would empty the un-notified set).
+// sendEmail is fire-and-forget (waitUntil) and no-ops without RESEND_API_KEY.
+adminApp.post("/waitlist/:slug/notify", async (c) => {
+  const slug = c.req.param("slug");
+  const emails = await emailsToNotify(c.env.DB, slug);
+  const soc = await getBySlug(c.env.DB, slug);
+  const name = soc?.name ?? slug;
+  const url = `${new URL(c.req.url).origin}/societies/${slug}`;
+  const tpl = waitlistReadyEmail({ societyName: name, societyUrl: url });
+  for (const to of emails) {
+    c.executionCtx.waitUntil(sendEmail(c.env, { to, subject: tpl.subject, html: tpl.html, text: tpl.text }));
+  }
+  const marked = await markNotified(c.env.DB, slug);
+  await recordAction(c.env.DB, c.get("adminUser"), "waitlist_notify", "society", slug, `notified ${marked} subscriber(s)`);
+  return c.html(
+    ActionResult(
+      "Notify",
+      marked === 0
+        ? `No un-notified subscribers for ${name} — nothing sent.`
+        : `Sent the "now has data" email to ${marked} subscriber${marked === 1 ? "" : "s"} for ${name}.`,
+      "/waitlist",
+    ),
+  );
 });
 
 // ---- Submissions browse + JSON API ----

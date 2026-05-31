@@ -8,6 +8,18 @@ All notable changes to RentLens are documented here. Format follows
 
 ### Added
 
+- Society waitlist + share-after-submit (RENT-swwqpyth). Sparse society
+  pages now carry a "get notified when this society has data" email
+  capture (HTMX inline, honeypot + per-IP daily cap for anti-spam, no
+  Turnstile). Stored in a new `waitlist` table (migration 0011) deduped
+  per (email, society). Admin gets a **Waitlist** queue (grouped by
+  society, most-demanded first) with a one-click **Notify** that emails
+  every un-notified subscriber the "now has data" mail, stamps them
+  notified, and writes an `admin_actions` audit row. Separately, the
+  /submit/success page's weak mailto-only share is upgraded to a proper
+  WhatsApp / X / email share block (reuses the ShareButtons component) —
+  caught at the moment the contributor is most engaged.
+
 - Marketing & growth surface (RENT-hwyzauyd epic). Discoverability:
   `/sitemap.xml` (static pages + every published society + notes, with
   `<lastmod>`) and a host-aware `/robots.txt` — `Allow: /` + sitemap only
