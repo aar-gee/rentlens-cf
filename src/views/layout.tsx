@@ -65,11 +65,16 @@ const Document: FC<LayoutProps> = ({ meta, children }) => (
       <meta property="og:description" content={meta.description} />
       <meta property="og:url" content={canonicalURL(meta.path)} />
       <meta property="og:image" content={ogImageURL(meta.ogImage)} />
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="630" />
+      <meta property="og:image:alt" content={meta.title} />
       <meta property="og:site_name" content="RentLens" />
+      <meta property="og:locale" content="en_IN" />
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={meta.title} />
       <meta name="twitter:description" content={meta.description} />
       <meta name="twitter:image" content={ogImageURL(meta.ogImage)} />
+      <meta name="twitter:image:alt" content={meta.title} />
       {/* Favicon + app-icon set: SVG canonical mark, PNG 16/32 fallbacks,
           apple-touch-icon at 180 for iOS, manifest for the Android PWA icons.
           theme-color tints the mobile address bar to the parchment ground. */}

@@ -7,7 +7,8 @@ import { SubmitSuccess } from "./views/pages/submit-success";
 import { SearchResults } from "./views/components/search-results";
 import { AreaResults } from "./views/components/area-results";
 import { MoverResults } from "./views/components/mover-results";
-import { listFeatured, filterFeatured, search, getBySlug } from "./data/society";
+import { listFeatured, filterFeatured, search, getBySlug, listAll } from "./data/society";
+import { robotsTxt, buildSitemap } from "./lib/seo";
 import { societyDetailBySlug } from "./data/society-detail";
 import { Contact, ContactSuccess } from "./views/pages/contact";
 import { HowItWorks } from "./views/pages/how-it-works";
@@ -743,6 +744,27 @@ function renderConsumeResult(
       return c.html(<Verify state={{ kind: "not_found" }} />);
   }
 }
+
+// ---- SEO surface (RENT-dbimvled) ----
+// robots.txt + sitemap.xml. Host-aware: only the canonical prod host is
+// crawlable; staging/local/preview emit Disallow:/ (see src/lib/seo.ts).
+app.get("/robots.txt", (c) => {
+  const origin = new URL(c.req.url).origin;
+  return c.text(robotsTxt(origin), 200, { "Cache-Control": "public, max-age=86400" });
+});
+
+app.get("/sitemap.xml", async (c) => {
+  const origin = new URL(c.req.url).origin;
+  const societies = await listAll(c.env.DB);
+  const xml = buildSitemap(
+    origin,
+    societies.map((s) => ({ slug: s.slug, lastUpdated: s.lastUpdated })),
+  );
+  return c.body(xml, 200, {
+    "Content-Type": "application/xml; charset=UTF-8",
+    "Cache-Control": "public, max-age=3600",
+  });
+});
 
 // ---- Static content pages ----
 app.get("/how-it-works", (c) => c.html(<HowItWorks />));

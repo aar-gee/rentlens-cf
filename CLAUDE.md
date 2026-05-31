@@ -34,7 +34,7 @@ There are exactly two deploy targets. Local dev is a third workspace.
 - **Never deploy straight to prod for a non-trivial change.** Ladder is `local → staging → verify → prod`. Trivial = copy/typo/single-line CSS that you can revert in 30s.
 - **Custom domain `rentlens.fyi` is wired via `[[routes]]` in `wrangler.toml` at the top level.** The `[env.staging]` block **MUST** keep `routes = []`. Without that, the staging Worker inherits the top-level routes and silently hijacks the production domain. This happened once on 2026-05-30; do not regress.
 - `workers.dev` is **disabled** on the prod Worker (rentlens.fyi is canonical). Staging keeps its `workers.dev` subdomain on because that *is* its address.
-- Both envs are `noindex` until prod has real residents; staging is `noindex` forever.
+- **Indexing is host-gated in code, not per-env config.** `src/lib/seo.ts` (`isIndexableHost`) treats only the canonical host `rentlens.fyi` as crawlable: `/robots.txt` serves `Allow: /` + the sitemap there, and `Disallow: /` on every other origin (staging `workers.dev`, `wrangler dev`, previews). So **prod is live/indexed** (decision 2026-05-31 — we launch presenting the seeded catalog as the live dataset and retire seed rows as real reports arrive) and **staging is `noindex` forever** automatically. `/sitemap.xml` is generated from published societies. To pull prod back to noindex, change `isIndexableHost` — it's a one-function flip.
 - Don't read prod D1 from a staging Worker or vice versa. Each env's D1 binding is wired to its own database in `wrangler.toml` — keep it that way.
 
 ---
