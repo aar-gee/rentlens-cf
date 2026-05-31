@@ -8,6 +8,13 @@ All notable changes to RentLens are documented here. Format follows
 
 ### Added
 
+- "What we got" summary panel on /submit/success (user request
+  2026-05-31). Closes RENT-eqqnvnce — the receipt is on-page instead of
+  by email. Shows society/locality, BHK + sqft + furnishing, rent +
+  maintenance + (when present) deposit + floor band. Indian-grouping
+  rupee format (₹62,000). Renders on both the inline post-submit render
+  AND the refresh-safe `/submit/success?id=` URL — `getSubmissionById`
+  now returns the unit fields too.
 - Submission visibility surfaces (user request 2026-05-31). Three new
   things: (1) ntfy push on every fresh submission via `notifySubmission()`
   — fire-and-forget through the existing NTFY_TOPIC; spam-flagged rows

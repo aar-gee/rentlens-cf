@@ -26,6 +26,66 @@ const SuccessAction: FC<{ title: string; blurb: string; href: string }> = ({ tit
   </a>
 );
 
+// formatINR — "₹62,000" style. Indian grouping (last three, then groups of two).
+const formatINR = (n: number): string => {
+  if (n <= 0) return "₹0";
+  const s = String(n);
+  const lastThree = s.slice(-3);
+  const head = s.slice(0, -3);
+  if (head === "") return "₹" + lastThree;
+  return "₹" + head.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + lastThree;
+};
+
+// FURNISHING_LABEL + FLOOR_LABEL — short display strings for the form's
+// canonical values. Match the radio labels on Step 1 (lib/submit.ts).
+const FURNISHING_LABEL: Record<string, string> = {
+  unfurnished: "Unfurnished",
+  semi: "Semi-furnished",
+  fully: "Fully furnished",
+};
+const FLOOR_LABEL: Record<string, string> = {
+  G: "Ground floor",
+  "1-3": "Floors 1–3",
+  "4-7": "Floors 4–7",
+  "8-15": "Floors 8–15",
+  "15-21": "Floors 15–21",
+  "21+": "Floor 21+",
+};
+
+// SummaryRow — one (label, value) pair. Always renders the label; falls back
+// to a dim em-dash when value is empty so the grid stays even.
+const SummaryRow: FC<{ label: string; value: string | number | null }> = ({ label, value }) => (
+  <div class="grid grid-cols-[110px_1fr] gap-3 items-baseline py-2 border-b border-hairline/60 last:border-b-0">
+    <div class="num text-[10px] tracking-[0.14em] uppercase text-ink-faint">{label}</div>
+    <div class="text-sm text-ink leading-relaxed">{value === "" || value === null || value === 0 ? <span class="text-ink-faint">—</span> : value}</div>
+  </div>
+);
+
+// SubmissionAck — concise "here's what we got" panel below the headline.
+// Renders only when sub carries the unit data we need (bhk + rent — both
+// required on Step 1). Skipped on the placeholder render (no id from URL).
+const SubmissionAck: FC<{ sub: Submission }> = ({ sub }) => {
+  if (sub.id === "" || sub.bhk === "" || sub.monthlyRent === 0) return null;
+  const society = sub.societyName !== "" ? sub.societyName : "—";
+  const locality = sub.locality !== "" ? sub.locality : "—";
+  const unitBits: string[] = [`${sub.bhk}BHK`];
+  if (sub.sqft !== null && sub.sqft > 0) unitBits.push(`${sub.sqft} sqft`);
+  if (sub.furnishing !== "" && FURNISHING_LABEL[sub.furnishing]) unitBits.push(FURNISHING_LABEL[sub.furnishing].toLowerCase());
+  return (
+    <div class="mt-10 bg-white border border-hairline p-5 sm:p-6 text-left max-w-[560px] mx-auto">
+      <div class="eyebrow mb-4">/ What we got</div>
+      <SummaryRow label="Society" value={`${society} · ${locality}`} />
+      <SummaryRow label="Unit" value={unitBits.join(" · ")} />
+      <SummaryRow label="Rent" value={`${formatINR(sub.monthlyRent)} / mo`} />
+      <SummaryRow label="Maintenance" value={sub.monthlyMaint > 0 ? `${formatINR(sub.monthlyMaint)} / mo` : ""} />
+      {sub.deposit !== null && sub.deposit > 0 ? <SummaryRow label="Deposit" value={formatINR(sub.deposit)} /> : null}
+      {sub.floorBand !== "" && FLOOR_LABEL[sub.floorBand] ? (
+        <SummaryRow label="Floor" value={FLOOR_LABEL[sub.floorBand]} />
+      ) : null}
+    </div>
+  );
+};
+
 // PendingQueueCopy — one of three variants based on which pending records the
 // submission carries (society+area / area only / society only).
 const PendingQueueCopy: FC<{ sub: Submission }> = ({ sub }) => {
@@ -100,6 +160,7 @@ export const SubmitSuccess: FC<{ sub: Submission }> = ({ sub }) => (
             <span class="num tracking-tight">{sub.id}</span>
           </div>
         ) : null}
+        <SubmissionAck sub={sub} />
         <div class="mt-10 bg-parchment-deep/30 border-l-2 border-marigold p-4 text-left max-w-[560px] mx-auto">
           <div class="flex items-start gap-3">
             <span class="num text-[10px] text-marigold-deep tracking-[0.14em] uppercase mt-0.5 flex-shrink-0">

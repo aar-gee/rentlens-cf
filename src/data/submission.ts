@@ -134,6 +134,13 @@ type SubmissionRow = {
   pending_society_id: string | null;
   locality: string;
   pending_area_id: string | null;
+  bhk: string;
+  monthly_rent: number;
+  monthly_maint: number;
+  floor_band: string;
+  furnishing: string;
+  sqft: number | null;
+  deposit: number | null;
 };
 
 export async function countSubmissions(db: D1Database): Promise<number> {
@@ -381,10 +388,16 @@ export async function getSubmissionForVerify(db: D1Database, id: string): Promis
   };
 }
 
+// getSubmissionById returns the (partial) Submission the success page needs.
+// Includes society + locality + pending links + the unit/rent core (bhk,
+// rent, maint, floor_band, furnishing, sqft, deposit) so the "here's what
+// we got" ack on /submit/success?id= can render after a refresh. Other
+// fields stay defaulted via newSubmission().
 export async function getSubmissionById(db: D1Database, id: string): Promise<Submission | null> {
   const row = await db
     .prepare(
-      `SELECT id, society_name, society_slug, pending_society_id, locality, pending_area_id
+      `SELECT id, society_name, society_slug, pending_society_id, locality, pending_area_id,
+              bhk, monthly_rent, monthly_maint, floor_band, furnishing, sqft, deposit
        FROM submissions WHERE id = ?`,
     )
     .bind(id)
@@ -397,5 +410,12 @@ export async function getSubmissionById(db: D1Database, id: string): Promise<Sub
   sub.pendingSocietyId = row.pending_society_id ?? "";
   sub.locality = row.locality;
   sub.pendingAreaId = row.pending_area_id ?? "";
+  sub.bhk = row.bhk;
+  sub.monthlyRent = row.monthly_rent;
+  sub.monthlyMaint = row.monthly_maint;
+  sub.floorBand = row.floor_band;
+  sub.furnishing = row.furnishing;
+  sub.sqft = row.sqft;
+  sub.deposit = row.deposit;
   return sub;
 }
