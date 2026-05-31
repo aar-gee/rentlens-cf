@@ -2,6 +2,7 @@
 // run as atomic D1 batches (db.batch is transactional). Per the user's call,
 // pending-AREA actions are also real here (the Go MVP left them dummy).
 import { newShortID } from "../lib/id";
+import { recomputeSocietyFromSubmissions, type RecomputeResult } from "./aggregate";
 
 export type AdminAction = {
   createdAt: string;
@@ -112,6 +113,40 @@ export async function recordAction(
   detail: string,
 ): Promise<void> {
   await insertAction(db, actor, action, targetKind, targetId, detail).run();
+}
+
+// ---- Submission moderation (RENT-tbhkjjfy part B) ----
+
+// publishSubmission marks a submission published, recomputes its society's
+// aggregates from all published reports (promoting provenance to 'resident'
+// once RESIDENT_THRESHOLD is met), and audits. The recompute is a no-op below
+// threshold. Returns the society slug + recompute outcome for the UI message.
+export async function publishSubmission(
+  db: D1Database,
+  actor: string,
+  id: string,
+): Promise<{ ok: boolean; slug: string; recompute: RecomputeResult | null }> {
+  const row = await db
+    .prepare(`SELECT society_slug AS slug FROM submissions WHERE id = ?`)
+    .bind(id)
+    .first<{ slug: string }>();
+  if (!row) return { ok: false, slug: "", recompute: null };
+  await db.prepare(`UPDATE submissions SET status = 'published' WHERE id = ?`).bind(id).run();
+  const recompute = row.slug ? await recomputeSocietyFromSubmissions(db, row.slug) : null;
+  const detail = recompute?.promoted
+    ? `published; ${row.slug} -> resident (${recompute.count} reports)`
+    : `published (society ${row.slug || "none/pending"})`;
+  await recordAction(db, actor, "publish_submission", "submission", id, detail);
+  return { ok: true, slug: row.slug, recompute };
+}
+
+// rejectSubmission marks a submission rejected (excluded from aggregates) +
+// audits. Does not recompute — rejected rows never counted.
+export async function rejectSubmission(db: D1Database, actor: string, id: string): Promise<boolean> {
+  const res = await db.prepare(`UPDATE submissions SET status = 'rejected' WHERE id = ?`).bind(id).run();
+  if (!res.success) return false;
+  await recordAction(db, actor, "reject_submission", "submission", id, "rejected");
+  return true;
 }
 
 export async function recentActions(db: D1Database, limit: number): Promise<AdminAction[]> {

@@ -728,6 +728,20 @@ const SubmissionRow: FC<{ r: SubmissionListRow; last: boolean }> = ({ r, last })
       {r.spamFlag ? <Badge tone="danger">spam</Badge> : null}
       {r.verifyState === "verified" ? <Badge tone="success">verified</Badge> : null}
       <Badge tone={r.status === "published" ? "success" : r.status === "rejected" ? "danger" : "mute"}>{r.status}</Badge>
+      {r.status === "pending" ? (
+        <div class="flex gap-1.5 mt-1">
+          <form action={adminHref(`/submissions/${r.id}/publish`)} method="post">
+            <button class="num text-[10px] tracking-[0.1em] uppercase border border-success text-success px-2 py-0.5 hover:bg-success hover:text-white transition-colors">
+              Publish
+            </button>
+          </form>
+          <form action={adminHref(`/submissions/${r.id}/reject`)} method="post">
+            <button class="num text-[10px] tracking-[0.1em] uppercase border border-hairline text-ink-mute px-2 py-0.5 hover:border-danger hover:text-danger transition-colors">
+              Reject
+            </button>
+          </form>
+        </div>
+      ) : null}
     </div>
   </div>
 );

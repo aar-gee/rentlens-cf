@@ -33,7 +33,10 @@ import {
   rejectPendingArea,
   recordAction,
   recentActions,
+  publishSubmission,
+  rejectSubmission,
 } from "../data/moderation";
+import { RESIDENT_THRESHOLD } from "../data/aggregate";
 
 type AdminBindings = {
   DB: D1Database;
@@ -406,4 +409,23 @@ adminApp.post("/messages/:id/reopen", async (c) => {
   const changed = await reopenContact(c.env.DB, id);
   if (changed) await recordAction(c.env.DB, c.get("adminUser"), "reopen", "contact", id, "");
   return c.html(ActionResult("Reopen", `Message ${id} reopened.`, "/messages"));
+});
+
+// Publish a submission: marks it published, recomputes its society from all
+// published reports (promotes to 'resident' provenance once the threshold is
+// met), and audits. (RENT-tbhkjjfy part B.)
+adminApp.post("/submissions/:id/publish", async (c) => {
+  const id = c.req.param("id");
+  const res = await publishSubmission(c.env.DB, c.get("adminUser"), id);
+  if (!res.ok) return c.html(ActionResult("Publish", `Submission ${id} not found.`, "/submissions"));
+  const msg = res.recompute?.promoted
+    ? `Published. ${res.slug} is now resident-verified (${res.recompute.count} reports drive its numbers).`
+    : `Published.${res.slug ? ` ${res.slug} stays an estimate until ${RESIDENT_THRESHOLD} resident reports.` : ""}`;
+  return c.html(ActionResult("Publish", msg, "/submissions"));
+});
+
+adminApp.post("/submissions/:id/reject", async (c) => {
+  const id = c.req.param("id");
+  await rejectSubmission(c.env.DB, c.get("adminUser"), id);
+  return c.html(ActionResult("Reject", `Submission ${id} rejected.`, "/submissions"));
 });
