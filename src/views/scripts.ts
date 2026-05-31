@@ -179,6 +179,36 @@ export const FORM_ERROR_CLEAR_SCRIPT = `
 })();
 `;
 
+// HTMX 4xx swap config: by default HTMX only swaps on 2xx responses and
+// silently discards 4xx/5xx bodies (firing htmx:responseError instead).
+// Several of our endpoints (POST /email/verify-now, POST /verify) return
+// 422 / 429 / 410 / 423 with a meaningful error fragment in the body that
+// SHOULD replace the targeted area. This global listener marks 4xx as
+// swappable so users see those errors inline. 5xx still surfaces as an
+// error event with no swap (those usually mean the server is broken;
+// keeping the previous state intact is the safer default).
+//
+// Registered before htmx loads via DOMContentLoaded; safe to no-op when
+// window.htmx is undefined (e.g. pages without the htmx script).
+export const HTMX_4XX_SWAP_SCRIPT = `
+(function() {
+  function register() {
+    if (!window.htmx) return false;
+    document.body.addEventListener('htmx:beforeSwap', function(evt) {
+      var s = evt.detail && evt.detail.xhr && evt.detail.xhr.status;
+      if (s >= 400 && s < 500) {
+        evt.detail.shouldSwap = true;
+        evt.detail.isError = false;
+      }
+    });
+    return true;
+  }
+  if (!register()) {
+    document.addEventListener('DOMContentLoaded', register);
+  }
+})();
+`;
+
 // Step 1 soft-nudge: when the contributor clicks any submit button on the
 // step-1 form with an email typed but verification not yet complete, pause
 // the form submission and show the #email-nudge <dialog> modal. From there:

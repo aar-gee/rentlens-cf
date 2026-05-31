@@ -6,6 +6,7 @@ import {
   CONDITIONAL_REVEAL_SCRIPT,
   FORM_ERROR_CLEAR_SCRIPT,
   SUBMIT_NUDGE_SCRIPT,
+  HTMX_4XX_SWAP_SCRIPT,
 } from "./scripts";
 
 // Meta carries page-level SEO/social metadata into the Layout.
@@ -41,6 +42,7 @@ const GlobalScripts: FC = () => (
     <script dangerouslySetInnerHTML={{ __html: PICKER_SCRIPT }} />
     <script dangerouslySetInnerHTML={{ __html: CONDITIONAL_REVEAL_SCRIPT }} />
     <script dangerouslySetInnerHTML={{ __html: SUBMIT_NUDGE_SCRIPT }} />
+    <script dangerouslySetInnerHTML={{ __html: HTMX_4XX_SWAP_SCRIPT }} />
   </>
 );
 
