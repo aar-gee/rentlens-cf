@@ -127,8 +127,9 @@ export const Privacy: FC<{ stats: HomeStats }> = ({ stats }) => (
           <PolicySection num="05" title="Email">
             <div class="space-y-4 text-base text-ink-mute leading-relaxed">
               <p>
-                If you give us an email, it's used only to answer a question about your submission or to let you know
-                when your society's page has data. Nothing else.
+                If you give us an email, we use it to answer a question about your submission, to let you know when
+                your society's page has data (if you asked), and to keep submissions honest — repeated reports from the
+                same address are rate-limited to curb spam. That's the full list.
               </p>
               <p>
                 Contributor email addresses are never shared with third parties, never sold, and never bundled into a
@@ -139,12 +140,12 @@ export const Privacy: FC<{ stats: HomeStats }> = ({ stats }) => (
           <PolicySection num="06" title="Request removal">
             <div class="space-y-4 text-base text-ink-mute leading-relaxed">
               <p>
-                If you've submitted and want any of it gone, partial or full, email{" "}
-                <a href="mailto:rahul@teamohana.com" class="link-u text-ink hover:text-marigold-deep">
-                  rahul@teamohana.com
+                If you've submitted and want any of it gone, partial or full, send a request through our{" "}
+                <a href="/contact" class="link-u text-ink hover:text-marigold-deep">
+                  contact form
                 </a>{" "}
-                with anything that helps us find your submission (rough date, society, the email you used if any). We'll
-                confirm deletion in writing.
+                — pick <span class="text-ink">"Data removal"</span> and include anything that helps us find your
+                submission (rough date, society, the email you used if any). We'll confirm deletion in writing.
               </p>
               <p>You don't need to explain why. "Please remove" is enough.</p>
             </div>

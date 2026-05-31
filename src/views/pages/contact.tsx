@@ -13,6 +13,7 @@ const categoryOptions: RadioOption[] = [
   { value: "bug", label: "Bug report" },
   { value: "feature", label: "Feature request" },
   { value: "general", label: "General" },
+  { value: "removal", label: "Data removal" },
 ];
 
 const Arrow: FC = () => (
@@ -25,10 +26,10 @@ const PreviewBanner: FC = () => (
   <div class="bg-parchment-deep border-b border-hairline px-5 sm:px-8 py-3">
     <div class="max-w-base mx-auto text-xs text-ink-mute flex items-start sm:items-center gap-2 leading-relaxed">
       <span class="w-1.5 h-1.5 rounded-full bg-marigold mt-1.5 sm:mt-0 flex-shrink-0" />
-      <span class="num text-marigold-deep tracking-[0.14em] uppercase flex-shrink-0">Preview</span>
+      <span class="num text-marigold-deep tracking-[0.14em] uppercase flex-shrink-0">Note</span>
       <span>
-        RentLens is in preview. Your message is saved and reaches the team — replies aren't guaranteed yet, but bug
-        reports are prioritised.
+        Your message reaches the team. We read everything; replies aren't always immediate, but bug reports are
+        prioritised.
       </span>
     </div>
   </div>
@@ -131,6 +132,8 @@ function successBlurb(category: string): string {
       return "Thanks for the bug report — we'll look into it. Critical issues get triaged first.";
     case "feature":
       return "Thanks for the suggestion. We weigh feature ideas against what makes the data more trustworthy.";
+    case "removal":
+      return "Thanks — we've logged your data-removal request and will confirm deletion in writing, usually within a few days.";
     default:
       return "Thanks for writing in. We read everything that lands here.";
   }

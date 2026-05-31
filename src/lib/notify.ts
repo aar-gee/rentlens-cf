@@ -17,6 +17,8 @@ function categoryPresentation(category: string): { title: string; tags: string; 
       return { title: "RentLens · Bug report", tags: "bug,warning", priority: "high" };
     case "feature":
       return { title: "RentLens · Feature request", tags: "bulb", priority: "default" };
+    case "removal":
+      return { title: "RentLens · Data removal request", tags: "wastebasket,warning", priority: "high" };
     default:
       return { title: "RentLens · Message", tags: "envelope", priority: "low" };
   }

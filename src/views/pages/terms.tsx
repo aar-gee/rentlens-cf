@@ -11,7 +11,7 @@ export const Terms: FC<{ stats: HomeStats }> = ({ stats }) => (
     meta={{
       title: "Terms of use — RentLens",
       description:
-        "Plain-language terms of use for RentLens. Acceptable use, preview-state caveats, and how contributor data is handled.",
+        "Plain-language terms of use for RentLens. Acceptable use, availability, and how contributor data is handled.",
       path: "/terms",
       ogType: "article",
     }}
@@ -20,7 +20,7 @@ export const Terms: FC<{ stats: HomeStats }> = ({ stats }) => (
     <main>
       <PolicyHero
         eyebrow="/ Terms of use"
-        intro="This is a preview product. The terms are short, the spirit is collaborative. If you read something here that feels unfair, email us and we'll fix the wording."
+        intro="The terms are short and the spirit is collaborative. If you read something here that feels unfair, email us and we'll fix the wording."
       >
         The <span class="emph-accent">rules</span> for using RentLens.
       </PolicyHero>
@@ -39,11 +39,12 @@ export const Terms: FC<{ stats: HomeStats }> = ({ stats }) => (
               </p>
             </div>
           </PolicySection>
-          <PolicySection num="02" title="Preview, not production">
+          <PolicySection num="02" title="Availability">
             <div class="space-y-4 text-base text-ink-mute leading-relaxed">
               <p>
-                RentLens is currently in preview. The site is functional and submissions are stored securely, but we
-                make no uptime, availability, or data-retention promises in this state.
+                RentLens is a young, independent product. The site is functional and submissions are stored securely,
+                but we make no uptime, availability, or data-retention guarantees, and features may change as the
+                product evolves.
               </p>
               <p>As the product matures, this section will be updated.</p>
             </div>
@@ -108,7 +109,7 @@ export const Terms: FC<{ stats: HomeStats }> = ({ stats }) => (
             <div class="space-y-4 text-base text-ink-mute leading-relaxed">
               <p>
                 To the extent allowed by law, RentLens, its operators, and contributors are not liable for indirect or
-                consequential damages arising from your use of the site or reliance on data shown here. The preview is
+                consequential damages arising from your use of the site or reliance on data shown here. The service is
                 provided as-is, with no warranty.
               </p>
             </div>

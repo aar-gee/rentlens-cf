@@ -3,13 +3,13 @@
 export type ContactFormData = {
   name: string;
   email: string;
-  category: string; // "bug" | "feature" | "general"
+  category: string; // "bug" | "feature" | "general" | "removal"
   message: string;
 };
 
 export const emptyContact = (): ContactFormData => ({ name: "", email: "", category: "", message: "" });
 
-const ALLOWED_CATEGORY = new Set(["bug", "feature", "general"]);
+const ALLOWED_CATEGORY = new Set(["bug", "feature", "general", "removal"]);
 const MESSAGE_MIN = 10;
 const MESSAGE_MAX = 2000;
 const NAME_MAX = 120;
@@ -35,7 +35,7 @@ export function validateContact(d: ContactFormData): Record<string, string> {
   else if ([...d.email].length > EMAIL_MAX) e.email = "That email looks too long.";
   else if (!EMAIL_RE.test(d.email)) e.email = "That doesn't look like a valid email.";
 
-  if (!ALLOWED_CATEGORY.has(d.category)) e.category = "Pick a category — bug, feature, or general.";
+  if (!ALLOWED_CATEGORY.has(d.category)) e.category = "Pick a category — bug, feature, general, or data removal.";
 
   const n = [...d.message].length;
   if (n === 0) e.message = "Tell us what's on your mind.";

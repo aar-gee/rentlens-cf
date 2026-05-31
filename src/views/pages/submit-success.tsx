@@ -183,10 +183,10 @@ export const SubmitSuccess: FC<{ sub: Submission }> = ({ sub }) => (
         <div class="mt-10 bg-parchment-deep/30 border-l-2 border-marigold p-4 text-left max-w-[560px] mx-auto">
           <div class="flex items-start gap-3">
             <span class="num text-[10px] text-marigold-deep tracking-[0.14em] uppercase mt-0.5 flex-shrink-0">
-              Preview
+              Review
             </span>
             <p class="text-sm text-ink-mute leading-relaxed">
-              RentLens is in preview. Your report is saved and will appear on the site after a quick moderation pass.
+              Your report is saved and will appear on the site after a quick review.
             </p>
           </div>
         </div>

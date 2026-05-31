@@ -38,9 +38,9 @@ export const PreviewBanner: FC = () => (
   <div class="bg-parchment-deep border-b border-hairline px-5 sm:px-8 py-3">
     <div class="max-w-base mx-auto text-xs text-ink-mute flex items-start sm:items-center gap-2 leading-relaxed">
       <span class="w-1.5 h-1.5 rounded-full bg-marigold mt-1.5 sm:mt-0 flex-shrink-0" />
-      <span class="num text-marigold-deep tracking-[0.14em] uppercase flex-shrink-0">Preview</span>
+      <span class="num text-marigold-deep tracking-[0.14em] uppercase flex-shrink-0">Review</span>
       <span>
-        RentLens is in preview. Your report is saved and enters a moderation queue before it appears on the site.
+        Your report is reviewed before it appears on the site — usually within a day or two.
       </span>
     </div>
   </div>

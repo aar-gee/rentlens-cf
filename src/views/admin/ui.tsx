@@ -455,6 +455,8 @@ const CategoryBadge: FC<{ category: string }> = ({ category }) => {
     return <span class="num text-[10px] tracking-[0.14em] uppercase bg-danger/15 text-danger-deep px-2 py-0.5 rounded">Bug</span>;
   if (category === "feature")
     return <span class="num text-[10px] tracking-[0.14em] uppercase bg-marigold/15 text-marigold-deep px-2 py-0.5 rounded">Feature</span>;
+  if (category === "removal")
+    return <span class="num text-[10px] tracking-[0.14em] uppercase bg-ink text-parchment px-2 py-0.5 rounded">Removal</span>;
   return <span class="num text-[10px] tracking-[0.14em] uppercase bg-ink/10 text-ink-mute px-2 py-0.5 rounded">General</span>;
 };
 
@@ -474,7 +476,14 @@ const snippet = (body: string) => {
 function mailtoLink(m: ContactSubmission): string {
   const subject = `Re: your message to RentLens (contact/${m.id})`;
   const greeting = m.name !== "" ? m.name : "there";
-  const kind = m.category === "bug" ? "bug report" : m.category === "feature" ? "feature request" : "message";
+  const kind =
+    m.category === "bug"
+      ? "bug report"
+      : m.category === "feature"
+        ? "feature request"
+        : m.category === "removal"
+          ? "data-removal request"
+          : "message";
   const body = `Hi ${greeting},\n\nThanks for writing in about your ${kind}.\n\n— RentLens\n\n---\nYour original message (ref: contact/${m.id}):\n\n${m.message}`;
   return `mailto:${m.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
