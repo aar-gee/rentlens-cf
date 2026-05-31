@@ -7,9 +7,9 @@ import { SubmitSuccess } from "./views/pages/submit-success";
 import { SearchResults } from "./views/components/search-results";
 import { AreaResults } from "./views/components/area-results";
 import { MoverResults } from "./views/components/mover-results";
-import { listFeatured, filterFeatured, search, getBySlug, listAll } from "./data/society";
+import { listFeatured, filterFeatured, search, getBySlug, listAll, listPublishedPage, PAGE_SIZE } from "./data/society";
 import { homeStats } from "./data/stats";
-import { SocietiesIndex } from "./views/pages/societies";
+import { SocietiesIndex, SocietyCardsFragment } from "./views/pages/societies";
 import { About } from "./views/pages/about";
 import { NotesIndex, NoteArticle } from "./views/pages/notes";
 import { notesByDate, noteBySlug } from "./data/notes";
@@ -215,13 +215,45 @@ app.get("/", async (c) => {
   return c.html(<Home featured={featured} stats={stats} />);
 });
 
-// /societies — full browseable directory. Most-reported first, then A→Z, so
-// the richest data leads. Linked from the homepage "Browse all societies" CTAs
-// and the header nav; listed in the sitemap.
+// /societies — full browseable directory. First PAGE_SIZE cards server-rendered
+// (most-reported first, then A→Z); further pages loaded via HTMX "revealed"
+// trigger on the sentinel appended by the initial render. JSON-LD ItemList
+// is capped at 50 entries — /sitemap.xml is the complete SEO surface.
 app.get("/societies", async (c) => {
-  const [all, stats] = await Promise.all([listAll(c.env.DB), homeStats(c.env.DB)]);
-  const societies = all.sort((a, b) => (b.reportCount ?? 0) - (a.reportCount ?? 0) || a.name.localeCompare(b.name));
-  return c.html(<SocietiesIndex societies={societies} stats={stats} />);
+  // listPublishedPage returns page 1; listAll is still used for the JSON-LD
+  // cap (we pass the first JSONLD_CAP societies) and for /sitemap.xml callers.
+  // Run both in parallel: page query is cheap (LIMIT PAGE_SIZE+1); the full
+  // list is needed only for the JSON-LD allForJSONLD slice.
+  const [page1, allForJSONLD, stats] = await Promise.all([
+    listPublishedPage(c.env.DB, 0),
+    listAll(c.env.DB),
+    homeStats(c.env.DB),
+  ]);
+  // allForJSONLD comes from listAll (insertion order); sort matches the browse
+  // sort so the JSON-LD top-50 reflects the same ordering the user sees.
+  allForJSONLD.sort((a, b) => (b.reportCount ?? -1) - (a.reportCount ?? -1) || a.name.localeCompare(b.name));
+  return c.html(
+    <SocietiesIndex
+      societies={page1.societies}
+      hasMore={page1.hasMore}
+      allForJSONLD={allForJSONLD}
+      stats={stats}
+    />,
+  );
+});
+
+// /societies/page — HTMX fragment: next batch of SocietyCard elements appended
+// into #societies-grid. ?offset must be a non-negative integer multiple of
+// PAGE_SIZE; anything else returns 400. Returns ONLY card HTML + optional next
+// sentinel (no layout wrapper). Matches the /featured fragment pattern.
+app.get("/societies/page", async (c) => {
+  const raw = c.req.query("offset") ?? "0";
+  const offset = parseInt(raw, 10);
+  if (!Number.isFinite(offset) || offset < 0 || offset % PAGE_SIZE !== 0) {
+    return c.text("Bad offset", 400);
+  }
+  const { societies, hasMore } = await listPublishedPage(c.env.DB, offset);
+  return c.html(<SocietyCardsFragment societies={societies} nextOffset={offset + PAGE_SIZE} hasMore={hasMore} />);
 });
 
 // /search — autocomplete dropdown HTML fragment. Accepts q or society_name

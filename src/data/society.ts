@@ -225,3 +225,40 @@ export async function filterFeatured(
 export function listFeatured(db: D1Database, limit: number): Promise<Society[]> {
   return filterFeatured(db, "", "", limit);
 }
+
+// PAGE_SIZE is the number of society cards returned per paginated request for
+// the /societies browse grid. Kept as a named constant so the route and view
+// share a single source of truth.
+export const PAGE_SIZE = 24;
+
+// listPublishedPage returns one page of published societies in the same
+// sort order as the /societies index: most-reported first (NULLs last),
+// then alphabetically by name within the same report count. This is a
+// stable keyset-friendly sort because (report_count DESC NULLS LAST, name ASC)
+// never ties across rows (name is unique per slug). The caller passes an
+// integer offset; the route validates it is a non-negative multiple of
+// PAGE_SIZE.
+//
+// Returns { societies, hasMore } so the view knows whether to render a
+// "Load more" trigger or not.
+export async function listPublishedPage(
+  db: D1Database,
+  offset: number,
+): Promise<{ societies: Society[]; hasMore: boolean }> {
+  // Fetch one extra row so we can detect a next page without a separate
+  // COUNT(*) query.
+  const fetchLimit = PAGE_SIZE + 1;
+  const { results } = await db
+    .prepare(
+      `SELECT ${SELECT_COLS}
+       FROM societies s
+       WHERE s.status = 'published'
+       ORDER BY COALESCE(s.report_count, -1) DESC, s.name ASC
+       LIMIT ? OFFSET ?`,
+    )
+    .bind(fetchLimit, offset)
+    .all<SocietyRow>();
+  const hasMore = results.length > PAGE_SIZE;
+  const societies = results.slice(0, PAGE_SIZE).map(rowToSociety);
+  return { societies, hasMore };
+}
