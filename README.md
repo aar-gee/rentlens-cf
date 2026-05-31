@@ -43,7 +43,7 @@ emit **committed migration SQL**. The migration files carry the data as
 
 ```
 seed/societies.csv ──node seed/gen-seed.ts──────────► migrations/0002_seed_societies.sql
-seed/builders.csv  ──node seed/gen-builders-roster.ts► migrations/0011_builders_roster.sql
+seed/builders.csv  ──node seed/gen-builders-roster.ts► migrations/0012_builders_roster.sql
 ```
 
 - `seed/builders.csv` is the **canonical source of truth for the builder
@@ -52,7 +52,7 @@ seed/builders.csv  ──node seed/gen-builders-roster.ts► migrations/0011_bui
 - `seed/gen-builders.ts` is **historical** — it generated the original
   `0003_builders.sql` (already applied to prod). Don't regenerate it; the
   current roster authority is `builders.csv` + `gen-builders-roster.ts`.
-- Some migrations are hand-written (e.g. `0012_society_city.sql`) — not every
+- Some migrations are hand-written (e.g. `0013_society_city.sql`) — not every
   migration comes from a generator.
 
 ### How each environment gets populated
@@ -85,12 +85,12 @@ automatically.
 - **Make new seed migrations safe to re-apply.** Use `INSERT ... ON CONFLICT DO
   UPDATE` (upsert) or `INSERT OR IGNORE`, and `ALTER ... DEFAULT` for new
   columns, so applying against an already-populated prod DB refreshes in place
-  rather than duplicating or failing. (`0011` upserts builders by name; `0012`
+  rather than duplicating or failing. (`0012` upserts builders by name; `0013`
   adds `societies.city` with a default.)
 
 ### Adding a new city later
 
-`societies.city` (migration `0012`, default `Bengaluru`) scopes the directory by
+`societies.city` (migration `0013`, default `Bengaluru`) scopes the directory by
 city. Builders stay city-agnostic with a single global tier for now — tier is a
 city-specific judgment, so a second city will move tier to a
 `builder_city_tiers` join table rather than adding a column to builders. A new
