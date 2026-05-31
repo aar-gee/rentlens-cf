@@ -16,7 +16,7 @@ export const Header: FC = () => (
         </nav>
       </div>
       <div class="flex items-center gap-4 sm:gap-6">
-        <span class="eyebrow !text-parchment/55 hidden md:inline">Bengaluru · v0.1</span>
+        <span class="eyebrow !text-parchment/55 hidden md:inline">Bengaluru</span>
         <a
           href="/submit"
           class="inline-flex items-center gap-2 bg-marigold hover:bg-marigold-deep transition-colors text-parchment px-4 py-2.5 text-sm font-medium tracking-tight whitespace-nowrap"

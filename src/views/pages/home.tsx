@@ -258,8 +258,8 @@ const WhyThisExistsSection: FC = () => (
           Fig. 02
         </span>
         <p>
-          <span class="num text-ink font-medium">₹2,04,000</span> a year in your pocket, not the portal's — on a
-          single 3 BHK lease. That's why this exists.
+          <span class="num text-ink font-medium">₹2,04,000</span> a year — the gap between the asking price and what
+          residents actually pay, on a single 3 BHK lease. Seeing it before you sign is why this exists.
         </p>
       </div>
     </div>
