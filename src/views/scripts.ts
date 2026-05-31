@@ -196,7 +196,7 @@ export const EMAIL_VALIDATE_SCRIPT = `
 (function() {
   // MIRROR of EMAIL_RE in src/lib/submit.ts — keep in sync.
   var EMAIL_RE = /^[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+\\.[A-Za-z]{2,24}$/;
-  var DEBOUNCE_MS = 500;
+  var DEBOUNCE_MS = 300;
   var timer = null;
 
   function targets() {
@@ -205,44 +205,54 @@ export const EMAIL_VALIDATE_SCRIPT = `
       err: document.getElementById('email-format-error'),
     };
   }
+  function hide(err) {
+    if (!err) return;
+    err.setAttribute('hidden', '');
+    err.hidden = true;
+    err.style.display = 'none';
+  }
+  function show(err) {
+    if (!err) return;
+    // Triple-belt: remove [hidden] attribute, drop IDL property, force
+    // display via inline !important so any CSS specificity fight loses.
+    err.removeAttribute('hidden');
+    err.hidden = false;
+    err.setAttribute('style', 'display: flex !important');
+  }
+  // tooEarly — true while the value is still plausibly being composed (no @
+  // yet, or fewer than 4 chars after the @). Gates the as-you-type check so
+  // we don't flash "invalid" while the user is still typing. Bypassed on
+  // blur: leaving the field means "this is my finished answer."
   function tooEarly(v) {
     var at = v.indexOf('@');
     return at < 1 || v.length - at < 4;
   }
-  function check() {
+  // force=true bypasses tooEarly — used on blur so a half-typed email like
+  // "rahul" gets flagged once the user moves on.
+  function check(force) {
     var t = targets();
     if (!t.input) return;
     var v = t.input.value.trim();
-    if (!v || tooEarly(v)) {
-      if (t.err) t.err.hidden = true;
-      t.input.classList.remove('border-danger');
-      return;
-    }
-    if (EMAIL_RE.test(v)) {
-      if (t.err) t.err.hidden = true;
-      t.input.classList.remove('border-danger');
-    } else {
-      if (t.err) t.err.hidden = false;
-      t.input.classList.add('border-danger');
-    }
+    if (!v) { hide(t.err); return; }
+    if (!force && tooEarly(v)) { hide(t.err); return; }
+    if (EMAIL_RE.test(v)) hide(t.err);
+    else show(t.err);
   }
   function scheduleCheck() {
     clearTimeout(timer);
-    timer = setTimeout(check, DEBOUNCE_MS);
+    timer = setTimeout(function() { check(false); }, DEBOUNCE_MS);
   }
 
   function attach() {
-    // Listen at document level so this still works after HTMX swaps replace
-    // the email block (e.g. clicking "Use different" returns to the input
-    // state and we want validation to resume without re-attach).
     document.addEventListener('input', function(e) {
       if (e.target && e.target.id === 'submit-email') scheduleCheck();
     });
     document.addEventListener('blur', function(e) {
-      if (e.target && e.target.id === 'submit-email') check();
+      if (e.target && e.target.id === 'submit-email') check(true);
     }, true);
-    // Initial pass for restored values (localStorage repopulates on load).
-    check();
+    // Initial pass — localStorage-restored values get validated immediately,
+    // forced through tooEarly because the user isn't currently composing.
+    check(true);
   }
 
   if (document.readyState === 'loading') {

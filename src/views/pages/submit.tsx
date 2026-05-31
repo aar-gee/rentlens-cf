@@ -232,12 +232,19 @@ const EmailVerifyBlock: FC<{ step1: Step1Data; errors: Errors; preStatus: PreSta
           maxlength={254}
         />
         {/* Inline as-you-type error from EMAIL_VALIDATE_SCRIPT. Hidden by
-            default; the JS toggles visibility based on the regex check (with
-            a 500ms debounce + an "@ + 4 chars after" gate so it doesn't
-            flash while the user is still composing). Server-side errors.email
-            is the source of truth on submit; this block disappears under it. */}
-        <div id="email-format-error" hidden class="text-xs text-danger leading-relaxed">
-          Please enter a valid email address.
+            default (display:none via the [hidden] attr); the JS flips
+            style.display directly to avoid any CSS specificity fights. Sized
+            up + iconified so it doesn't get lost. */}
+        <div
+          id="email-format-error"
+          hidden
+          class="flex items-start gap-2 border-l-2 border-danger bg-danger/15 px-3 py-2 text-sm text-danger leading-relaxed"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="text-danger flex-shrink-0 mt-0.5">
+            <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" />
+            <path d="M8 4.5v4M8 11v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          </svg>
+          <span>That doesn't look like a valid email. Check for typos like a missing dot or a comma.</span>
         </div>
         <div id="email-verify-status">
           <span id="email-verify-state" data-state="none" hidden />
