@@ -5,6 +5,7 @@ import { newSubmission, insertSubmission, type Submission } from "../data/submis
 import { isCanonicalArea } from "../data/area";
 import { isCanonicalMover } from "../data/mover";
 import { findOrCreatePendingArea, findOrCreatePendingSociety } from "../data/pending";
+import { isProbableSpam } from "./spam";
 
 export type Step1Data = {
   societyName: string;
@@ -248,5 +249,10 @@ export async function persistSubmission(db: D1Database, sub: Submission): Promis
     const psId = await findOrCreatePendingSociety(db, sub.societyName, sub.locality, sub.pendingAreaId);
     if (psId) sub.pendingSocietyId = psId;
   }
+  // Silent per-email rate rule (RENT-okskjmao). Computed BEFORE insert so the
+  // count only sees PRIOR submissions — this row becomes part of the count
+  // for the next attempt. No-ops for empty help_contact (anonymous reports
+  // can't be rate-limited on email; they'd need a different signal).
+  sub.spamFlag = await isProbableSpam(db, sub.helpContact);
   return insertSubmission(db, sub);
 }
