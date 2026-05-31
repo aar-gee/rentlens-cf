@@ -688,7 +688,11 @@ const SubmissionRow: FC<{ r: SubmissionListRow; last: boolean }> = ({ r, last })
         {r.pendingSocietyId !== "" ? <Badge tone="marigold">new society</Badge> : null}
         {r.pendingAreaId !== "" ? <Badge tone="marigold">new area</Badge> : null}
         {r.areaMismatch ? <Badge tone="danger">area mismatch</Badge> : null}
-        {r.hasProof ? <Badge tone="success">proof</Badge> : null}
+        {r.hasProof ? (
+          <a href={adminHref(`/proof/${r.id}/view`)} class="inline-block">
+            <Badge tone="success">proof →</Badge>
+          </a>
+        ) : null}
       </div>
       <div class="text-xs text-ink-mute mt-1 num">
         {r.bhk}BHK · {formatINRView(r.monthlyRent)} rent · {formatINRView(r.monthlyMaint)} maint · {r.floorBand || "—"} · {r.furnishing || "—"}
@@ -782,6 +786,136 @@ export const SubmissionsQueue = (
             ))}
           </div>
         )}
+      </div>
+    </main>
+  </AdminBase>
+);
+
+// ---- Admin proof viewer ----
+//
+// Lands when an admin clicks "View" on a submission row that has a proof
+// on file. The page renders submission context (society/locality/rent +
+// verify/spam/area-mismatch chips) alongside an inline preview of the
+// uploaded file. Image MIME types get an <img>; PDF gets an <embed>;
+// everything else falls through to "open raw" since browsers handle them
+// inconsistently inline.
+//
+// The actual bytes are served by the existing GET /<prefix>/proof/<sub_id>
+// stream route — this view just sets the src on the preview element.
+
+export type ProofViewerRow = {
+  id: string;
+  createdAt: string;
+  societyName: string;
+  societySlug: string;
+  locality: string;
+  bhk: string;
+  monthlyRent: number;
+  monthlyMaint: number;
+  furnishing: string;
+  helpContact: string;
+  verifyState: "unverified" | "verified";
+  spamFlag: boolean;
+  status: string;
+  proofUploadKey: string;
+  proofContentType: string;
+};
+
+const formatINRAdmin = (n: number): string => {
+  if (n <= 0) return "₹0";
+  const s = String(n);
+  const lastThree = s.slice(-3);
+  const head = s.slice(0, -3);
+  if (head === "") return "₹" + lastThree;
+  return "₹" + head.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + lastThree;
+};
+
+const ProofPreview: FC<{ src: string; contentType: string }> = ({ src, contentType }) => {
+  if (contentType.startsWith("image/")) {
+    return (
+      <div class="bg-parchment-deep/30 border border-hairline p-3 flex items-center justify-center min-h-[420px]">
+        <img src={src} alt="Proof preview" class="max-w-full max-h-[80vh] object-contain" />
+      </div>
+    );
+  }
+  if (contentType === "application/pdf") {
+    return (
+      <div class="bg-parchment-deep/30 border border-hairline">
+        <embed src={src} type="application/pdf" class="w-full h-[80vh] block" />
+      </div>
+    );
+  }
+  return (
+    <div class="bg-parchment-deep/30 border border-hairline p-8 text-center">
+      <p class="text-sm text-ink-mute leading-relaxed">
+        This proof is a <span class="num text-ink">{contentType || "binary file"}</span>. Inline preview isn't
+        supported for this type — open the raw file below.
+      </p>
+    </div>
+  );
+};
+
+export const ProofViewer = (row: ProofViewerRow, rawHref: string) => (
+  <AdminBase title={`Proof · ${row.societyName}`} active="submissions">
+    <main class="px-5 sm:px-8 py-10 sm:py-14">
+      <div class="max-w-wide mx-auto">
+        <div class="mb-6 flex items-center gap-3 text-sm">
+          <a href={adminHref("/submissions")} class="text-ink-mute hover:text-ink underline">
+            ← Back to submissions
+          </a>
+          <span class="text-ink-faint">·</span>
+          <span class="num text-xs text-ink-faint tracking-[0.14em] uppercase">id {row.id}</span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+          <ProofPreview src={rawHref} contentType={row.proofContentType} />
+
+          <aside class="grid gap-4">
+            <div class="bg-white border border-hairline p-5">
+              <div class="eyebrow mb-3">/ Submission</div>
+              <div class="text-base text-ink leading-snug font-medium">{row.societyName}</div>
+              <div class="text-sm text-ink-mute mt-1">{row.locality || "—"}</div>
+              <div class="text-xs text-ink-faint num mt-3 leading-relaxed">
+                {row.bhk}BHK · {formatINRAdmin(row.monthlyRent)} rent
+                {row.monthlyMaint > 0 ? ` · ${formatINRAdmin(row.monthlyMaint)} maint` : ""}
+                {row.furnishing ? ` · ${row.furnishing}` : ""}
+              </div>
+            </div>
+
+            <div class="bg-white border border-hairline p-5">
+              <div class="eyebrow mb-3">/ Signals</div>
+              <div class="flex flex-wrap gap-1.5">
+                <Badge tone={row.status === "published" ? "success" : row.status === "rejected" ? "danger" : "mute"}>
+                  {row.status}
+                </Badge>
+                {row.verifyState === "verified" ? <Badge tone="success">verified</Badge> : null}
+                {row.spamFlag ? <Badge tone="danger">spam</Badge> : null}
+                {row.helpContact ? <Badge tone="ink">email</Badge> : null}
+              </div>
+              {row.helpContact ? (
+                <div class="text-xs text-ink-faint num mt-3 break-all">{row.helpContact}</div>
+              ) : null}
+            </div>
+
+            <div class="bg-white border border-hairline p-5">
+              <div class="eyebrow mb-3">/ File</div>
+              <div class="text-xs text-ink-mute leading-relaxed break-all">
+                <span class="num text-ink-faint">key:</span> {row.proofUploadKey}
+              </div>
+              <div class="text-xs text-ink-mute mt-2">
+                <span class="num text-ink-faint">type:</span> {row.proofContentType || "(unknown)"}
+              </div>
+              <a
+                href={rawHref}
+                target="_blank"
+                rel="noopener"
+                class="mt-4 inline-block bg-ink text-parchment px-3.5 py-2 text-xs font-medium tracking-tight hover:bg-ink/90 transition-colors"
+              >
+                Open raw file →
+              </a>
+            </div>
+          </aside>
+        </div>
       </div>
     </main>
   </AdminBase>

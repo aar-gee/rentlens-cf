@@ -72,6 +72,7 @@ const Step1Hidden: FC<{ s1: Step1Data }> = ({ s1 }) => (
     <input type="hidden" name="floor_band" value={s1.floorBand} />
     <input type="hidden" name="furnishing" value={s1.furnishing} />
     <input type="hidden" name="email" value={s1.email} />
+    <input type="hidden" name="staged_proof_key" value={s1.stagedProofKey} />
   </>
 );
 

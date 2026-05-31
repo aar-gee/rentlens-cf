@@ -43,6 +43,14 @@ const EXT_FOR_MIME: Record<string, string> = {
   "application/pdf": "pdf",
 };
 
+// STAGED_PREFIX — R2 key prefix for files uploaded inline at Step 1 BEFORE
+// the submission row exists. The submit handler promotes the staged key to
+// the submission's proof_upload_key on persist. Orphans (file uploaded but
+// form never submitted) get auto-purged by a shorter R2 lifecycle rule on
+// this prefix (see staged/ rule in dashboard / wrangler r2 bucket
+// lifecycle).
+export const STAGED_PREFIX = "staged/";
+
 export type WriteProofResult =
   | { kind: "ok"; key: string }
   | { kind: "no_binding" } // R2 not wired (dev / pre-secret); caller no-ops
@@ -53,10 +61,17 @@ export type WriteProofResult =
 // writeProof validates the file + writes to R2. Returns the assigned key on
 // success. No-ops with { kind: 'no_binding' } when env.PROOFS isn't wired so
 // the rest of the submit flow keeps working in local dev.
+//
+// keyPrefix controls where the object lands. `proofs/<sub_id>/` is the
+// canonical post-submission path. Pass STAGED_PREFIX for inline Step-1
+// uploads where the submission row doesn't exist yet (the submit handler
+// then writes the staged key into the submission's proof_upload_key, no
+// rename/copy needed — saves a Class-A op).
 export async function writeProof(
   env: ProofEnv,
-  submissionId: string,
+  ownerKey: string,
   file: File,
+  opts: { keyPrefix?: string } = {},
 ): Promise<WriteProofResult> {
   if (!env.PROOFS) return { kind: "no_binding" };
   if (file.size === 0) return { kind: "empty" };
@@ -66,19 +81,17 @@ export async function writeProof(
 
   const buf = await file.arrayBuffer();
   const sniffed = sniffMime(new Uint8Array(buf));
-  // Allow when sniff agrees, or when sniff is "unknown" and the claim is in
-  // the accepted set (HEIC magic-byte detection is rough, so we don't reject
-  // it on sniff failure).
   if (sniffed !== "" && sniffed !== claimedType && !heicLike(claimedType, sniffed)) {
     return { kind: "wrong_type", type: `${claimedType} (sniffed ${sniffed})` };
   }
 
   const ext = EXT_FOR_MIME[claimedType] ?? "bin";
   const rand = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-  const key = `proofs/${submissionId}/${rand}.${ext}`;
+  const prefix = opts.keyPrefix ?? `proofs/${ownerKey}/`;
+  const key = `${prefix}${rand}.${ext}`;
   await env.PROOFS.put(key, buf, {
     httpMetadata: { contentType: claimedType },
-    customMetadata: { submissionId },
+    customMetadata: { ownerKey },
   });
   return { kind: "ok", key };
 }

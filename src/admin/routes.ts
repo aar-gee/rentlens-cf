@@ -2,7 +2,7 @@
 // Port of admin/server.go route table + admin/handlers.go.
 import { Hono } from "hono";
 import { adminAuth } from "./auth";
-import { Dashboard, PendingSocietiesQueue, PendingAreasQueue, MessagesQueue, ActionResult, BuildersPage, SubmissionsQueue } from "../views/admin/ui";
+import { Dashboard, PendingSocietiesQueue, PendingAreasQueue, MessagesQueue, ActionResult, BuildersPage, SubmissionsQueue, ProofViewer } from "../views/admin/ui";
 import { countPublished, publishedSlugs } from "../data/society";
 import { listBuilders, createBuilder } from "../data/builders";
 import { CANONICAL_AREAS } from "../data/area";
@@ -221,9 +221,72 @@ adminApp.get("/api/submissions", async (c) => {
   });
 });
 
-// Admin proof viewer — proxies the R2 object so admins (basic-auth gated)
-// can review the uploaded doc. Streams the original bytes with the stored
-// content-type. 404 when no proof on file; 503 when R2 isn't bound.
+// Admin proof viewer — HTML wrapper that frames the uploaded file with
+// submission context. Renders an embedded preview + the same metadata the
+// admin would otherwise have to cross-reference in the /submissions table.
+//
+// The raw bytes live at /<prefix>/proof/<id> (below); this page just sets
+// the preview src to that URL so the worker doesn't have to buffer the
+// file into the HTML response.
+adminApp.get("/proof/:id/view", async (c) => {
+  const id = c.req.param("id");
+  if (!c.env.PROOFS) return c.text("PROOFS not bound", 503);
+  const r = await c.env.DB.prepare(
+    `SELECT id, created_at, society_name, society_slug, locality, bhk,
+            monthly_rent, monthly_maint, furnishing, help_contact,
+            verify_state, spam_flag, status, proof_upload_key
+       FROM submissions WHERE id = ?`,
+  )
+    .bind(id)
+    .first<{
+      id: string;
+      created_at: string;
+      society_name: string;
+      society_slug: string | null;
+      locality: string;
+      bhk: string;
+      monthly_rent: number;
+      monthly_maint: number;
+      furnishing: string;
+      help_contact: string;
+      verify_state: string;
+      spam_flag: number;
+      status: string;
+      proof_upload_key: string;
+    }>();
+  if (!r || !r.proof_upload_key) return c.text("not found", 404);
+  // Pull just the content type from R2 (HEAD-ish; head() returns just the
+  // metadata without streaming the body — cheap Class-B op).
+  const head = await c.env.PROOFS.head(r.proof_upload_key);
+  const contentType = head?.httpMetadata?.contentType ?? "";
+  return c.html(
+    ProofViewer(
+      {
+        id: r.id,
+        createdAt: r.created_at,
+        societyName: r.society_name,
+        societySlug: r.society_slug ?? "",
+        locality: r.locality,
+        bhk: r.bhk,
+        monthlyRent: r.monthly_rent,
+        monthlyMaint: r.monthly_maint,
+        furnishing: r.furnishing,
+        helpContact: r.help_contact,
+        verifyState: r.verify_state === "verified" ? "verified" : "unverified",
+        spamFlag: r.spam_flag === 1,
+        status: r.status,
+        proofUploadKey: r.proof_upload_key,
+        proofContentType: contentType,
+      },
+      // Relative path: /<prefix>/proof/<id>/view → ../<id> = /<prefix>/proof/<id>.
+      `../${id}`,
+    ),
+  );
+});
+
+// Admin proof raw stream — proxies the R2 object. Streams the original
+// bytes with the stored content-type. 404 when no proof on file; 503 when
+// R2 isn't bound.
 adminApp.get("/proof/:id", async (c) => {
   const id = c.req.param("id");
   if (!c.env.PROOFS) return c.text("PROOFS not bound", 503);

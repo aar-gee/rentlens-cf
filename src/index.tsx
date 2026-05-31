@@ -36,7 +36,7 @@ import {
 } from "./lib/submit";
 import { getClientIp } from "./lib/spam";
 import { sendEmail, type EmailEnv } from "./lib/email";
-import { writeProof, readProof, type ProofEnv } from "./lib/proof";
+import { writeProof, readProof, type ProofEnv, STAGED_PREFIX } from "./lib/proof";
 import { ackEmail as renderAckEmail } from "./views/email/ack-email";
 import { ProofPage, type ProofPageState } from "./views/pages/proof";
 import { getSubmissionByProofToken, markProofUploaded } from "./data/submission";
@@ -325,6 +325,68 @@ app.post("/submit/step2a", async (c) => {
 // formaction on the back button so a single form ferries everything across.
 // No validation: this is purely "render the previous page with what they've
 // typed". Step 2 validation (re-)runs when they move forward again.
+// POST /submit/stage-proof — inline Step 1 upload (RENT-tscofnqc completion).
+// File hits R2 BEFORE the submission row exists; the JSON response returns
+// the R2 key, and the client JS writes that into a hidden input
+// (staged_proof_key) which Step1Hidden carries through Steps 2 → 3.
+// buildSubmission promotes the staged key into the submission's
+// proof_upload_key on persist. Orphans (file uploaded but form abandoned)
+// are auto-purged by the staged/ R2 lifecycle rule.
+//
+// Cost-control mirrors the post-submit /proof/<token> route:
+//   - Pre-parseBody Content-Length cap (< 600 KB)
+//   - Per-IP daily limit (10/day; a hair higher than the post-submit cap
+//     since both inline + late paths count separately)
+// No Turnstile here on purpose: the widget on Step 1 produces a single-use
+// token; spending it on the stage upload would invalidate the eventual
+// form submit. We accept that tradeoff and rely on per-IP rate + spam_flag
+// downstream to catch abuse.
+const STAGE_MAX_PER_IP_PER_DAY = 10;
+
+app.post("/submit/stage-proof", async (c) => {
+  if (!c.env.PROOFS) {
+    return c.json({ ok: false, error: "uploads_unavailable" }, 503);
+  }
+  const clHeader = c.req.header("Content-Length");
+  const cl = clHeader ? parseInt(clHeader, 10) : NaN;
+  if (Number.isFinite(cl) && cl > 600 * 1024) {
+    return c.json({ ok: false, error: "too_large" }, 413);
+  }
+  // Per-IP rate cap — counts both inline stage uploads (proof_upload_key
+  // LIKE 'staged/%') AND post-submit late uploads (proof_upload_key
+  // LIKE 'proofs/%') for the same IP in the last 24h.
+  const clientIp = getClientIp((n) => c.req.header(n));
+  if (clientIp !== "") {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000)
+      .toISOString()
+      .replace("T", " ")
+      .slice(0, 19);
+    const row = await c.env.DB.prepare(
+      `SELECT count(*) AS n FROM submissions WHERE ip_address = ? AND proof_upload_key != '' AND created_at > ?`,
+    )
+      .bind(clientIp, cutoff)
+      .first<{ n: number }>();
+    if ((row?.n ?? 0) >= STAGE_MAX_PER_IP_PER_DAY) {
+      return c.json({ ok: false, error: "rate_limited" }, 429);
+    }
+  }
+  const body = await c.req.parseBody();
+  const file = body["file"];
+  if (!file || typeof file === "string") {
+    return c.json({ ok: false, error: "no_file" }, 422);
+  }
+  // No submission_id yet — pass a random owner key purely for R2's
+  // customMetadata trail. STAGED_PREFIX makes the actual key path predictable.
+  const stagedOwner = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+  const result = await writeProof(c.env, stagedOwner, file, { keyPrefix: STAGED_PREFIX });
+  if (result.kind === "ok") return c.json({ ok: true, key: result.key });
+  if (result.kind === "too_large") return c.json({ ok: false, error: "too_large", size: result.size }, 413);
+  if (result.kind === "wrong_type") return c.json({ ok: false, error: "wrong_type", type: result.type }, 415);
+  if (result.kind === "empty") return c.json({ ok: false, error: "empty" }, 422);
+  if (result.kind === "no_binding") return c.json({ ok: false, error: "uploads_unavailable" }, 503);
+  return c.json({ ok: false, error: "unknown" }, 500);
+});
+
 app.post("/submit/back-step2a", async (c) => {
   const body = await c.req.parseBody();
   const step1 = parseStep1(body);

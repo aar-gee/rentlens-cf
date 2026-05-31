@@ -8,6 +8,26 @@ All notable changes to RentLens are documented here. Format follows
 
 ### Added
 
+- Inline rental-agreement upload on Step 1 of /submit
+  (RENT-tscofnqc completion). New POST `/submit/stage-proof` accepts a
+  multipart file, writes to R2 under `staged/<rand>.<ext>`, and returns
+  the R2 key as JSON. STAGE_PROOF_SCRIPT (client-side) hooks the file
+  input on Step 1: downscales images via canvas, uploads via fetch on
+  pick, writes the returned key into a hidden `staged_proof_key` input.
+  Step1Hidden ferries the key through Step 2 → 3; buildSubmission
+  promotes it to `proof_upload_key` on persist (defense: only accepts
+  keys prefixed with `staged/`, rejecting hand-crafted forms that try to
+  point at arbitrary R2 paths). Per-IP rate cap of 10 stage uploads/24h
+  (counts both inline + late paths). Content-Length pre-check at 600 KB.
+  Lifecycle rule on `staged/` prefix auto-purges orphans after 1 day so
+  abandoned form sessions don't accumulate storage cost.
+- Admin proof viewer at `<prefix>/proof/<id>/view`. HTML wrapper around
+  the existing raw-stream endpoint: shows submission context (society,
+  locality, rent, signals), an inline preview (`<img>` for images,
+  `<embed>` for PDFs, fallback message for unrecognized types), and a
+  raw-download link. Submissions table's "proof" badge now links to it
+  ("proof →"). Uses R2 `head()` to read content-type without streaming
+  the body (cheap Class-B op).
 - Optional rental-agreement proof upload (RENT-tscofnqc /
   RENT-ngelwosv). New R2 bucket `rentlens-proofs` (staging:
   `rentlens-proofs-staging`) bound as `env.PROOFS`. Migration 0010

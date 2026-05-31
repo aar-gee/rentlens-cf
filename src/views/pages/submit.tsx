@@ -385,8 +385,60 @@ const Step1Fields: FC<{ step1: Step1Data; errors: Errors; preStatus: PreStatus }
     </FieldRow>
 
     <EmailVerifyBlock step1={step1} errors={errors} preStatus={preStatus} />
+    <RentalProofBlock step1={step1} />
   </>
 );
+
+// RentalProofBlock — optional inline rental-agreement upload on Step 1.
+// File goes to R2 immediately on pick via STAGE_PROOF_SCRIPT (which calls
+// the existing client-side downscale logic + POSTs to /submit/stage-proof).
+// The returned R2 key writes into the hidden #staged-proof-key input which
+// Step1Hidden ferries through Steps 2 → 3. On final persist, buildSubmission
+// promotes it to the submission's proof_upload_key.
+//
+// The visible status string + button reflect the staged state on re-render
+// (so a 422 re-render of Step 1 doesn't lose the picked file).
+const RentalProofBlock: FC<{ step1: Step1Data }> = ({ step1 }) => {
+  const hasStaged = step1.stagedProofKey !== "";
+  return (
+    <FieldRow
+      label="Rental agreement"
+      helper="Optional photo / PDF — adds credibility, weighted more heavily."
+      optional
+    >
+      <div class="grid gap-2" data-step1-proof>
+        <input type="hidden" id="staged-proof-key" name="staged_proof_key" value={step1.stagedProofKey} />
+        <div
+          id="step1-proof-controls"
+          class="flex items-center gap-3"
+          data-hidden-when-staged={hasStaged ? "true" : "false"}
+          hidden={hasStaged}
+        >
+          <input
+            id="step1-proof-file"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf"
+            class="block text-sm text-ink-mute file:mr-3 file:py-2 file:px-3 file:border file:border-hairline file:bg-white file:text-xs file:text-ink hover:file:border-ink file:cursor-pointer cursor-pointer"
+          />
+        </div>
+        <div id="step1-proof-status" class="text-xs leading-relaxed" hidden={!hasStaged}>
+          {hasStaged ? (
+            <span class="text-marigold-deep">
+              ✓ Proof attached.{" "}
+              <button type="button" data-step1-proof-clear class="underline hover:text-ink-mute">
+                Remove
+              </button>
+            </span>
+          ) : null}
+        </div>
+        <div class="text-xs text-ink-faint leading-relaxed">
+          Up to 500 KB. Photos auto-shrink in your browser. We never show proofs publicly — admins use them only to
+          verify entries.
+        </div>
+      </div>
+    </FieldRow>
+  );
+};
 
 export const Submit: FC<{ step1: Step1Data; errors: Errors; siteKey?: string; preStatus?: PreStatus }> = ({
   step1,
