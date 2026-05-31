@@ -4,100 +4,99 @@ First public post introducing RentLens. Primary target: **r/bangalore**
 (the launch push is Bangalore-first per `HANDOFF.md`). Possible later:
 r/india once coverage widens.
 
-Grounded in the live product (`src/views/pages/home.tsx`, brand voice in
-`HANDOFF.md`) and the current catalog (`seed/societies.csv`): **36 seeded
-societies** across the east-Bangalore / ORR / Whitefield IT belt — Whitefield,
-Marathahalli, Bellandur, Sarjapur Road, Hoodi, Mahadevapura, Varthur, Panathur,
-Thanisandra. The post is honest that this is an early, mostly-bootstrapped
-dataset and frames that as the reason to contribute, not something to hide.
+Voice: first-person founder story, plain and direct, light Indian-English
+register without caricature. Inspiration is the levels.fyi origin-story tone —
+"I kept getting burned by missing information, so I built the reference I
+wished existed."
 
-## Before posting — read HANDOFF.md, then this
+## Verified against production (rentlens.fyi) on 2026-05-31
 
-1. **Subreddit self-promo rules.** r/bangalore (like most city subs) limits
-   "launch your app" posts. Read the sidebar + recent mod posts. If unsure,
-   message the mods first — a mod-blessed, correctly-flaired post lands far
-   better than one that gets removed and burns the domain's reputation.
-2. **Claim discipline (from HANDOFF.md "what you can / can't claim"):**
-   - Do **not** say "every number is verified" — most ranges are still `seed`
-     (indicative bootstrap). The honest line is "every number is stamped with
-     how many reports back it and how recent they are."
-   - No user counts, testimonials, or "thousands of contributors" — there's no
-     real public traffic yet.
-   - It's **intelligence-only**: not a broker, not a flat-finding service, no
-     marketplace. Don't imply otherwise.
-   - Email verification is **optional**, proof upload is **optional**, reports
-     are **anonymous by default**. Don't write copy that implies email is
-     required to contribute.
-3. **The site is `noindex` (preview).** Fine for a Reddit link; just don't say
+- **Society count = 24, NOT 36.** The live autocomplete API (`/api/societies`),
+  enumerated across a-z + every builder + every locality, returns exactly **24**
+  published societies. The 36 figure is the repo seed CSV (`seed/societies.csv`);
+  only 24 are actually live on prod. The body below uses "about two dozen" / 24.
+  > Maintainer note: HANDOFF.md still says "36 seeded societies." That's the
+  > seed file, not production. Worth reconciling — only 24 are published live.
+- **Provenance labels are live = claim holds.** The prod homepage shows the
+  labels verbatim: `seed`, `estimated`, `partially verified`, `verified source`.
+  So "every number is clearly marked" is honest and verified.
+
+## Before posting
+
+1. **Subreddit self-promo rules.** r/bangalore limits "launch your app" posts.
+   Read the sidebar + recent mod posts; message the mods first if unsure.
+2. **Claim discipline (HANDOFF.md):** don't say "every number is verified" (most
+   are still `seed`/`estimated`); no user counts or testimonials; it's
+   intelligence-only (not a broker/marketplace); reporting is anonymous, email
+   and proof are optional.
+3. **Site is `noindex` (preview).** The Reddit link works; just don't say
    "search your society on Google" yet.
-4. **Brand mark is `RentLens.`** (with the period). Link the apex:
-   https://rentlens.fyi — not the www variant.
-
-> Note for the maintainer: `CLAUDE.md` §1 still describes the product as a
-> "directory of housing societies in **Pune**," which contradicts HANDOFF.md
-> and the actual Bangalore catalog. Worth reconciling §1 in a separate commit.
+4. **Link the apex:** https://rentlens.fyi — not the www variant.
 
 ---
 
 ## Title options
 
-Pick one. A is the safest / most on-voice (mirrors the homepage hero,
-"Asking prices lie.").
+Pick one. A leans hardest into the story.
 
-- **A.** Asking prices lie — so I built a free, non-profit directory of what Bangalore residents *actually* pay in rent
-- **B.** What are people really paying in your society? Trying to build a neutral rent reference for Bangalore — no brokers, no ads, not for profit
-- **C.** A small non-profit project: real resident-reported rent ranges for Bangalore societies, and I need your help making them accurate
+- **A.** Rented 4 flats in 10 years and overpaid almost every time. So I'm building a levels.fyi for Bangalore rents.
+- **B.** Asking prices lie. I kept finding out my neighbours paid less than me for the same flat, so I built a free rent reference for Bangalore.
+- **C.** A non-profit project: what Bangalore residents actually pay in rent, reported by residents. Looking for feedback and contributors.
 
 ---
 
 ## Body
 
-Property portals show you what owners *ask*. Almost nobody can tell you what
-people in a society actually *pay*.
+In the last 10 years I have rented 4 different flats in Bangalore. Almost every
+single time, I found out later that I had overpaid.
 
-I ran into this helping a friend look for a flat on the ORR. The broker quotes
-one number. The listing shows another that evaporates the moment you call. Ask
-three people what a 2BHK in Whitefield "should" cost and you get three
-confident, completely different answers. There's no neutral place to
-sanity-check a quote before you're standing in the flat being told to decide in
-ten minutes.
+The problem was always the same. I never knew anyone living in the society. So
+when the broker or owner quoted a number, I had nothing to compare it against. I
+would negotiate a little, feel good about saving one or two thousand, and move
+in. Then a couple of months later I would meet a neighbour in the lift and
+casually find out they were paying 5-6k less than me for the exact same 2BHK,
+same floor, same everything. Every time this happened it genuinely irritated me.
 
-So I built one. It's called RentLens — a directory of housing societies with
-rent ranges that come from residents, not brokers and not listings. Right now
-it covers about 36 societies across the east-Bangalore / ORR belt: Whitefield,
-Marathahalli, Bellandur, Sarjapur Road, Hoodi and nearby.
+That is the whole problem. There is no neutral place to check what people in a
+society are actually paying before you sign. Portals only show you what owners
+are *asking*, which is a fantasy number. Brokers obviously will not tell you.
+And the one real source, the residents themselves, you have no way to reach
+before you have already moved in.
 
-The thing I care about most: it doesn't pretend to know more than it does.
-Every number is stamped with how many reports back it and how recent they are,
-so you can see at a glance whether a range is solid or just an early estimate.
-A lot of the data right now is still my own bootstrap estimate, clearly marked
-as such — I'd rather show you "we don't actually know this one yet" than dress
-up a guess as a fact.
+So I started building one. It is called RentLens. Think of it like levels.fyi
+but for rent. People who actually live in a society report what they pay, rent,
+maintenance, deposit, and the next person can simply look it up instead of going
+in blind like I did 4 times.
 
-A few things up front:
+Right now it covers about two dozen societies on the east Bangalore / ORR side,
+Whitefield, Marathahalli, Bellandur, Sarjapur Road, Hoodi and nearby. I will be
+honest, it is early. A lot of the numbers right now are still my own rough
+estimates, and they are clearly marked as such on each society. I did not want
+to fake confidence and show you a guess as if it were a verified fact. Every
+number tells you how many people reported it and how recent it is, so you know
+whether to trust it or take it with a pinch of salt.
 
-- **It's not a business.** No ads, no broker partnerships, no lead generation,
-  and your data is never sold. It's a public reference, not a funnel. The only
-  way a wrong number gets fixed is more residents reporting the real one.
-- **No login, no paywall.** Just look things up.
-- **Reporting is anonymous by default** and takes about a minute — seven quick
-  fields. Optional email only if you want a follow-up; it's never shown publicly
-  or shared.
-- **It's intelligence only.** RentLens doesn't broker flats or replace the
-  portals — it's just the missing reference layer for what rent actually is.
+A few things I want to be upfront about:
 
-This only works if the numbers come from people who live in these societies,
-which is where I'm hoping this sub can help. Two ways:
+- This is **not a business.** No ads, no broker tie-ups, no lead selling,
+  nothing. I am not making money from this. Your data is never sold. It is just
+  a public reference, the thing I wish existed when I was renting.
+- **No login, no paywall.** Just open and check.
+- **Reporting is anonymous.** Takes about a minute, seven small fields. Email is
+  optional, and even if you give it, it is never shown anywhere or shared.
 
-1. **Look up your society and add what you pay.** Every report turns an estimate
-   into something real and makes the next person's search less blind. If your
-   society isn't listed yet, you can add it.
-2. **Tell me where I'm wrong.** This is an early, rough version. If a range is
-   off, if I've covered the wrong areas, if the whole approach is flawed — I
-   genuinely want to hear it. Correction is the point.
+It only works if enough residents add their real numbers, so this is where I
+could use help from this sub:
 
-Full disclosure: I built this, so this is me sharing my own project, not posing
-as a happy user. Happy to answer anything in the comments.
+1. **Look up your society and add what you pay.** Even one entry helps the next
+   person avoid getting fooled the way I did.
+2. **Tell me where I am wrong.** It is rough and early. If a range looks off, if
+   I have covered the wrong areas, if you think the whole idea is pointless,
+   please tell me. I genuinely want the feedback.
+
+Full disclosure, I built this, so this is me sharing my own thing, not
+pretending to be some random happy user. I will be in the comments, ask me
+anything.
 
 Link: https://rentlens.fyi
 
@@ -105,16 +104,14 @@ Link: https://rentlens.fyi
 
 ## Posting notes
 
-- **Be present in the comments early.** The first hour sets the tone. Thank
+- **Be present in the comments early.** First hour sets the tone. Thank
   correctors, fix obvious errors fast, don't get defensive.
-- **One link, near the end** (already done). Don't lead with it or repeat it —
-  reads as spam.
+- **One link, near the end** (already done). Don't lead with it or repeat it.
 - **If asked "what's the catch":** solo, non-profit, no monetisation, built to
-  scratch my own itch. All true — just say it plainly.
-- **No emojis, no hype words, no exclamation marks.** RentLens copy is
-  deliberately plain and declarative; keep the post the same.
-- **Verify the society count before posting** — it's 36 today but may move;
-  or just say "a few dozen to start."
+  scratch my own itch. All true, just say it plainly.
+- **No emojis, no hype words, no exclamation marks.**
+- **Re-check the live society count before posting** (24 as of 2026-05-31, may
+  move); or keep the soft "about two dozen" already in the body.
 - **Save the data post for later:** once enough societies have real
   multi-resident ranges, a "here's what N reports say about Bangalore rents"
   follow-up usually outperforms a second launch post.
