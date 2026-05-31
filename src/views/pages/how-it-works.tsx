@@ -77,19 +77,25 @@ export const HowItWorks: FC<{ stats: HomeStats }> = ({ stats }) => (
 
       <Section num="01" eyebrow="The data">
         <h2 class="display text-2xl sm:text-3xl md:text-4xl font-medium tracking-tighter mb-4">
-          Resident-reported. Not portal-scraped.
+          Resident-first. Not portal-scraped.
         </h2>
         <div class="space-y-4 text-base text-ink-mute leading-relaxed max-w-[640px]">
           <p>
-            Every rent, maintenance, and deposit number on RentLens came from someone who actually lives — or recently
-            lived — in that society. We don't ingest portal listings, we don't scrape brokers, and we don't accept
-            owner submissions.
+            RentLens is built to carry one kind of number — what residents actually pay. We don't ingest portal
+            listings, we don't scrape brokers, and we don't accept owner submissions.
           </p>
           <p>
-            Each report is aggregated server-side. We publish the <span class="num text-ink font-medium">median</span>{" "}
-            and the <span class="num text-ink font-medium">range</span> for the bucket — never the raw point estimate
-            from any one resident. That's how a single high or low outlier can't move the headline, and how no
-            individual flat can be reverse-engineered from the page.
+            <span class="text-ink font-medium">We're early, so here's the honest state today:</span> most societies
+            currently show an <span class="emph">indicative estimate</span> — our own starting guess, clearly labelled
+            as such (see "Data labels" below) — because a blank page helps no one. Every estimate gets replaced the
+            moment residents report.
+          </p>
+          <p>
+            Real resident reports are aggregated server-side. We publish the{" "}
+            <span class="num text-ink font-medium">median</span> and the{" "}
+            <span class="num text-ink font-medium">range</span> for the bucket — never the raw point estimate from any
+            one resident. A single high or low outlier can't move the headline, and no individual flat can be
+            reverse-engineered from the page.
           </p>
         </div>
       </Section>
@@ -99,9 +105,10 @@ export const HowItWorks: FC<{ stats: HomeStats }> = ({ stats }) => (
           Four tiers. One small dot.
         </h2>
         <p class="text-base text-ink-mute leading-relaxed max-w-[640px] mb-8">
-          Every aggregate carries a colored dot that tells you how much to trust it. Verification is{" "}
-          <span class="emph">progressive</span> — we never hide a number behind a "verify or nothing" gate, but we
-          always tell you what's underneath.
+          Once a society has resident reports, each aggregate earns one of these four labels — a colored dot telling you
+          how corroborated it is. (Until then it shows the <span class="emph">Indicative estimate</span> label from the
+          Data labels section below, not one of these.) Verification is <span class="emph">progressive</span> — we never
+          hide a number behind a "verify or nothing" gate, but we always tell you what's underneath.
         </p>
         <ul class="space-y-5">
           <li class="flex items-start gap-4">
@@ -152,7 +159,9 @@ export const HowItWorks: FC<{ stats: HomeStats }> = ({ stats }) => (
           What we'll show — and what we won't.
         </h2>
         <p class="text-base text-ink-mute leading-relaxed max-w-[640px] mb-8">
-          Small samples lie loudly. RentLens stays quiet until the data earns the right to be loud.
+          Small samples lie loudly, so these thresholds govern when a <span class="emph">resident-reported</span> number
+          goes public. While we're early, most societies sit below the first threshold — you'll see "Our estimate" until
+          residents clear it.
         </p>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-px bg-hairline border border-hairline">
           <div class="bg-parchment p-5 sm:p-6">
@@ -262,7 +271,8 @@ export const HowItWorks: FC<{ stats: HomeStats }> = ({ stats }) => (
         </h2>
         <p class="text-base text-ink-mute leading-relaxed max-w-[640px] mb-6">
           Every society carries a <span class="emph">provenance</span> label so you always know where its numbers come
-          from — and we upgrade it as real resident data arrives.
+          from — and we upgrade it as real resident data arrives.{" "}
+          <span class="text-ink font-medium">Right now, while we're early, most societies are Indicative.</span>
         </p>
         <ul class="space-y-4">
           <li class="flex items-start gap-4">
@@ -309,7 +319,7 @@ export const HowItWorks: FC<{ stats: HomeStats }> = ({ stats }) => (
           <div class="divide-y divide-hairline border-y border-hairline">
             <FaqItem
               q="Is this owner or broker data?"
-              a="No. Every number comes from a current or recent resident. We actively filter out anyone identifying as an owner, broker, or property manager — and a future watcher signup will require LinkedIn + employer verification to keep that side clean."
+              a="No — we only accept resident reports and actively filter out anyone identifying as an owner, broker, or property manager. We're early, so many societies currently show a clearly-labelled estimate (our own guess) until residents report — but we never take an owner's or broker's number, and a future watcher signup will require LinkedIn + employer verification to keep that side clean."
             />
             <FaqItem
               q="Do you verify every submission?"

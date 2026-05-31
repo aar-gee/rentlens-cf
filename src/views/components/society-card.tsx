@@ -41,6 +41,12 @@ const featuredRange = (s: Society) =>
 
 const cardHref = (s: Society) => `/societies/${s.slug}`;
 
+// Honest trust display keys off provenance: only genuinely resident-reported
+// data shows a real report count + a verified treatment. Seed/estimated
+// societies read as "our estimate," never as crowd-verified.
+const isEstimate = (s: Society) => s.provenance !== "resident";
+const trustFooter = (s: Society) => (isEstimate(s) ? "Our estimate" : reportsLabel(s.reportCount));
+
 const CardHeader: FC<{ soc: Society }> = ({ soc }) => (
   <header class="flex items-start justify-between gap-2">
     <div class="min-w-0">
@@ -102,7 +108,7 @@ const CardStandard: FC<{ soc: Society; variant: CardVariant }> = ({ soc, variant
       href={cardHref(soc)}
       class="card-elev flex-shrink-0 w-[280px] sm:w-[300px] bg-white border border-hairline p-5 sm:p-6 flex flex-col gap-4 relative no-underline"
     >
-      {variant === "verified" ? (
+      {variant === "verified" && !isEstimate(soc) ? (
         <div class="absolute top-0 right-0 bg-ink text-parchment text-[9px] px-2 py-0.5 tracking-[0.14em] uppercase font-mono">
           Verified
         </div>
@@ -112,8 +118,12 @@ const CardStandard: FC<{ soc: Society; variant: CardVariant }> = ({ soc, variant
       <div class="h-px bg-hairline" />
       <footer class="flex items-center justify-between text-xs">
         <div class="flex items-center gap-1.5 text-ink-mute">
-          <span class={`w-1.5 h-1.5 rounded-full ${variant === "verified" ? "bg-success" : "bg-marigold"}`} />
-          <span class="num">{reportsLabel(soc.reportCount)}</span>
+          <span
+            class={`w-1.5 h-1.5 rounded-full ${
+              !isEstimate(soc) && variant === "verified" ? "bg-success" : isEstimate(soc) ? "bg-ink-faint" : "bg-marigold"
+            }`}
+          />
+          <span class="num">{trustFooter(soc)}</span>
         </div>
         {ts !== "" ? <span class="num text-ink-faint">{ts}</span> : null}
       </footer>
@@ -132,7 +142,7 @@ const CardLimited: FC<{ soc: Society }> = ({ soc }) => (
     <footer class="flex items-center justify-between text-xs">
       <div class="flex items-center gap-1.5 text-ink-mute">
         <span class="w-1.5 h-1.5 rounded-full bg-ink-faint" />
-        <span class="num">{reportsLabel(soc.reportCount)}</span>
+        <span class="num">{trustFooter(soc)}</span>
       </div>
       <span class="text-marigold hover:text-marigold-deep font-medium">Help fill in →</span>
     </footer>
