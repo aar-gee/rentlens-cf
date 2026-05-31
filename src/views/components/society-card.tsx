@@ -1,7 +1,7 @@
 import type { FC } from "hono/jsx";
 import type { Society } from "../../data/society";
 import { formatINR, formatRange, reportsLabel } from "../../lib/format";
-import { relativeTime } from "../../lib/relative-time";
+import { recentTime } from "../../lib/relative-time";
 
 // Port of components/society_card.templ — the four-variant featured card.
 type CardVariant = "self-reported" | "partially-verified" | "verified" | "limited";
@@ -96,7 +96,7 @@ const CardMetric: FC<{ soc: Society; limited: boolean }> = ({ soc, limited }) =>
 };
 
 const CardStandard: FC<{ soc: Society; variant: CardVariant }> = ({ soc, variant }) => {
-  const ts = relativeTime(soc.lastUpdated);
+  const ts = recentTime(soc.lastUpdated);
   return (
     <a
       href={cardHref(soc)}

@@ -11,7 +11,19 @@ const Arrow: FC = () => (
 
 const fmt = (n: number) => n.toLocaleString("en-IN");
 
-const ContributeCTAHome: FC<{ stats: HomeStats }> = ({ stats }) => (
+const Stat: FC<{ value: string; label: string }> = ({ value, label }) => (
+  <div>
+    <div class="num text-2xl font-medium">{value}</div>
+    <div class="eyebrow !text-parchment/50 mt-1">{label}</div>
+  </div>
+);
+
+const ContributeCTAHome: FC<{ stats: HomeStats }> = ({ stats }) => {
+  // Show the "estimated data points" stat until real submissions overtake the
+  // society count — then the catalog is carrying its own weight and the
+  // estimate crutch is dropped (user spec 2026-05-31).
+  const showEstimated = stats.actualPoints <= stats.societies;
+  return (
   <section id="contribute" class="px-5 sm:px-8 py-20 sm:py-28 bg-ink text-parchment relative overflow-hidden">
     <div aria-hidden="true" class="absolute inset-0 opacity-[0.07] pointer-events-none">
       <div class="absolute top-0 left-0 sm:left-[10%] w-px h-full bg-parchment" />
@@ -41,26 +53,15 @@ const ContributeCTAHome: FC<{ stats: HomeStats }> = ({ stats }) => (
         </a>
       </div>
       <div class="mt-16 sm:mt-20 pt-10 border-t border-parchment/10 grid grid-cols-2 md:grid-cols-4 gap-8 text-left">
-        <div>
-          <div class="num text-2xl font-medium">{fmt(stats.reports)}</div>
-          <div class="eyebrow !text-parchment/50 mt-1">Reports</div>
-        </div>
-        <div>
-          <div class="num text-2xl font-medium">{fmt(stats.societies)}</div>
-          <div class="eyebrow !text-parchment/50 mt-1">Societies</div>
-        </div>
-        <div>
-          <div class="num text-2xl font-medium">{fmt(stats.areas)}</div>
-          <div class="eyebrow !text-parchment/50 mt-1">Areas covered</div>
-        </div>
-        <div>
-          <div class="num text-2xl font-medium">100%</div>
-          <div class="eyebrow !text-parchment/50 mt-1">Anonymous</div>
-        </div>
+        <Stat value={fmt(stats.societies)} label="Societies tracked" />
+        {showEstimated ? <Stat value={fmt(stats.estimatedPoints)} label="Estimated data points" /> : null}
+        <Stat value={fmt(stats.actualPoints)} label="Actual data points" />
+        <Stat value="100%" label="Anonymous" />
       </div>
     </div>
   </section>
-);
+  );
+};
 
 const ContributeCTASociety: FC<{ name: string }> = ({ name }) => (
   <section id="contribute" class="px-5 sm:px-8 py-20 sm:py-24 bg-ink text-parchment relative overflow-hidden">
@@ -100,5 +101,5 @@ export const ContributeCTA: FC<{ societyName?: string; stats?: HomeStats }> = ({
   societyName && societyName !== "" ? (
     <ContributeCTASociety name={societyName} />
   ) : (
-    <ContributeCTAHome stats={stats ?? { reports: 0, societies: 0, areas: 0 }} />
+    <ContributeCTAHome stats={stats ?? { societies: 0, areas: 0, estimatedPoints: 0, actualPoints: 0 }} />
   );

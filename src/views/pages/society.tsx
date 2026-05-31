@@ -20,7 +20,7 @@ import { NearbyCard } from "../components/nearby-card";
 import { PillRowLeft, type PillItem } from "../components/pill-row";
 import { ProvenanceBadge } from "../components/provenance-badge";
 import { formatINR, formatINRRange } from "../../lib/format";
-import { relativeTime } from "../../lib/relative-time";
+import { recentTime } from "../../lib/relative-time";
 
 const HOST = "https://rentlens.fyi";
 
@@ -64,8 +64,10 @@ function societySparseMeta(soc: SocietyRecord): Meta {
 // ---- hero label helpers ----
 function heroEyebrow(d: SocietyDetail): string {
   const id = d.id || d.slug;
-  const when = d.lastUpdated ? relativeTime(d.lastUpdated) : "2h ago";
-  return `Society · ${id} · last updated ${when}`;
+  // Honest recency: only show "last updated …" when it's genuinely within the
+  // last 7 days — no hardcoded "2h ago" fallback on seeded/stale rows.
+  const when = recentTime(d.lastUpdated);
+  return when ? `Society · ${id} · last updated ${when}` : `Society · ${id}`;
 }
 
 function yearRangeLabel(d: SocietyDetail): string {

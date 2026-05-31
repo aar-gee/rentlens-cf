@@ -100,8 +100,9 @@ export const About: FC<{ stats: HomeStats }> = ({ stats }) => (
           said it and how recently.
         </p>
         <p class="text-base text-ink-mute leading-relaxed">
-          Today that's {fmt(stats.reports)} reports across {fmt(stats.societies)} societies in {fmt(stats.areas)}{" "}
-          Bengaluru localities — and growing every week.
+          Today that's estimates across {fmt(stats.societies)} societies in {fmt(stats.areas)} Bengaluru localities,
+          with {fmt(stats.actualPoints)} real resident reports in so far — and every submission swaps one of our guesses
+          for a fact.
         </p>
       </Block>
 

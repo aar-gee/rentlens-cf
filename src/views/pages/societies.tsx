@@ -36,8 +36,8 @@ const IntroSection: FC<{ stats: HomeStats }> = ({ stats }) => (
         Every society we track, in one place.
       </h1>
       <p class="mt-5 text-base sm:text-lg text-ink-mute max-w-[620px] leading-relaxed">
-        {fmt(stats.reports)} resident reports across {fmt(stats.societies)} societies in {fmt(stats.areas)} Bengaluru
-        localities. Don't see yours? Add it in sixty seconds.
+        Estimates across {fmt(stats.societies)} societies in {fmt(stats.areas)} Bengaluru localities, with{" "}
+        {fmt(stats.actualPoints)} real resident reports in so far. Don't see yours? Add it in sixty seconds.
       </p>
     </div>
   </section>

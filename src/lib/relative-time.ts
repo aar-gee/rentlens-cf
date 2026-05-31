@@ -20,3 +20,15 @@ export function relativeTime(iso: string | null): string {
   if (d < 2 * DAY) return "yesterday";
   return `${Math.floor(d / DAY)} days ago`;
 }
+
+// recentTime — relativeTime, but only when the timestamp is within the last
+// `withinDays` (default 7); otherwise "". Used for honest recency: we only
+// surface "last updated X ago" when it's genuinely recent, so seeded/stale
+// rows show no freshness signal at all (no misleading "2h ago" fallback).
+export function recentTime(iso: string | null, withinDays = 7): string {
+  if (!iso) return "";
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "";
+  if (Date.now() - t > withinDays * 24 * 60 * 60 * 1000) return "";
+  return relativeTime(iso);
+}
