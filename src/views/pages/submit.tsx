@@ -231,6 +231,14 @@ const EmailVerifyBlock: FC<{ step1: Step1Data; errors: Errors; preStatus: PreSta
           autocomplete="email"
           maxlength={254}
         />
+        {/* Inline as-you-type error from EMAIL_VALIDATE_SCRIPT. Hidden by
+            default; the JS toggles visibility based on the regex check (with
+            a 500ms debounce + an "@ + 4 chars after" gate so it doesn't
+            flash while the user is still composing). Server-side errors.email
+            is the source of truth on submit; this block disappears under it. */}
+        <div id="email-format-error" hidden class="text-xs text-danger leading-relaxed">
+          Please enter a valid email address.
+        </div>
         <div id="email-verify-status">
           <span id="email-verify-state" data-state="none" hidden />
           <button

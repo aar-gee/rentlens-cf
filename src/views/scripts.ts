@@ -179,6 +179,80 @@ export const FORM_ERROR_CLEAR_SCRIPT = `
 })();
 `;
 
+// Inline email-format validation on Step 1 — validate as the user types,
+// 500ms debounce, with a "too early to judge" gate so we don't flash an
+// error while they're mid-domain. Pairs with the existing server-side
+// check (isValidEmail in lib/submit.ts) — the regex MUST stay in sync.
+// Server still owns the final word; this is just snappier feedback so
+// the user doesn't have to click Verify email to see the typo.
+//
+// Visible only in the "none" state (the typed input). Pending/verified
+// states render the email as a hidden input, no validation needed.
+//
+// The "too early" gate: skip validation until the field has @ AND at
+// least 4 chars after it (minimum plausible domain like x.co). Before
+// that, hide any prior error — they're still composing.
+export const EMAIL_VALIDATE_SCRIPT = `
+(function() {
+  // MIRROR of EMAIL_RE in src/lib/submit.ts — keep in sync.
+  var EMAIL_RE = /^[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+\\.[A-Za-z]{2,24}$/;
+  var DEBOUNCE_MS = 500;
+  var timer = null;
+
+  function targets() {
+    return {
+      input: document.getElementById('submit-email'),
+      err: document.getElementById('email-format-error'),
+    };
+  }
+  function tooEarly(v) {
+    var at = v.indexOf('@');
+    return at < 1 || v.length - at < 4;
+  }
+  function check() {
+    var t = targets();
+    if (!t.input) return;
+    var v = t.input.value.trim();
+    if (!v || tooEarly(v)) {
+      if (t.err) t.err.hidden = true;
+      t.input.classList.remove('border-danger');
+      return;
+    }
+    if (EMAIL_RE.test(v)) {
+      if (t.err) t.err.hidden = true;
+      t.input.classList.remove('border-danger');
+    } else {
+      if (t.err) t.err.hidden = false;
+      t.input.classList.add('border-danger');
+    }
+  }
+  function scheduleCheck() {
+    clearTimeout(timer);
+    timer = setTimeout(check, DEBOUNCE_MS);
+  }
+
+  function attach() {
+    // Listen at document level so this still works after HTMX swaps replace
+    // the email block (e.g. clicking "Use different" returns to the input
+    // state and we want validation to resume without re-attach).
+    document.addEventListener('input', function(e) {
+      if (e.target && e.target.id === 'submit-email') scheduleCheck();
+    });
+    document.addEventListener('blur', function(e) {
+      if (e.target && e.target.id === 'submit-email') check();
+    }, true);
+    // Initial pass for restored values (localStorage repopulates on load).
+    check();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attach);
+  } else {
+    attach();
+  }
+})();
+`;
+
 // Form persistence across refresh + tab-close: save the submit form's field
 // values to localStorage as the user types, restore them on page load.
 //
