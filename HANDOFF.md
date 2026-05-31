@@ -64,7 +64,7 @@ This is the actual copy on the site. Match this register when you write anything
 - **Truth-claim heavy.** The product's whole pitch is "real over asking." Voice leans into that — declarative, slightly contrarian, never breathless.
 - **Single italics for emphasis.** Words like *ask* and *pay* get rendered with a custom `<span class="emph">` / `<span class="emph-accent">`. Don't use ALL CAPS.
 - **Numerals are first-class.** "60-second submission," "Seven quick fields." The site uses a monospace font for numbers (JetBrains Mono); copy treats specific numbers as the point.
-- **"Pune" vs "Bengaluru" — flag for the user.** The verify + ack emails sign off as "RentLens · rentlens.fyi · Pune, India" (per the project memory). The homepage copy mentions Bengaluru neighborhoods ("Whitefield, Hoodi, Brookefield and Nallurhalli"). **This is a real inconsistency** — ask the user which city the public-facing copy should claim before publishing anything that names a city.
+- **No city in outward copy.** The site does NOT claim a city in its tagline, emails, or branding. Email signoffs are just "RentLens · rentlens.fyi" — no "Pune", no "Bengaluru". The homepage mentions the *neighborhoods we currently cover* (Whitefield, Hoodi, Brookefield, Nallurhalli — all Bengaluru clusters) because those are real catalog facts, but the brand is city-agnostic. Don't put a city in headlines, sign-offs, or meta tags. If you need to name where the catalog focuses today, mention the neighborhoods, not the city.
 
 ---
 
@@ -112,7 +112,7 @@ You probably don't need to design — but if you're commissioning a graphic, a s
 ### Constraints you must respect in copy
 - **The site is in preview** (`noindex`). It's not searchable on Google by design. Don't claim "search for your society on Google" yet.
 - **Most rent ranges are still `seed`** (indicative bootstrap). The "resident-verified" claim is true for *some* societies, not yet most. Marketing language like "every number verified" is **not honest yet** — the better phrasing is "every number stamped with sample size and recency" (already on the site).
-- **No real public traffic yet.** Don't reference user counts, testimonials, or "thousands of contributors." Truthful framing: "we're building this for Bengaluru/Pune renters; here's where it lives; here's how to contribute."
+- **No real public traffic yet.** Don't reference user counts, testimonials, or "thousands of contributors." Truthful framing: "we're building this for renters; here's where it lives; here's how to contribute."
 - **No subscriptions, no broker functions, no flat-finding service.** This is the explicit positioning lock: RentLens is intelligence-only. A marketplace product is a *separate future thing* and out of scope for current marketing.
 - **Verified email is OPTIONAL.** Don't write copy that implies email is required to submit — the form intentionally lets people contribute anonymously.
 
@@ -188,23 +188,13 @@ All page sources are in `src/views/pages/`. Don't paraphrase — these are the c
 
 ---
 
-## City question (read this before naming a city)
-
-The site currently has **two cities** showing up:
-- **Bengaluru** — homepage neighborhoods (Whitefield, Hoodi, Brookefield, Nallurhalli) + the 36 seed societies are all Bengaluru clusters
-- **Pune** — email signoffs ("RentLens · rentlens.fyi · Pune, India") + project memory references
-
-**Confirm with the user** which city public-facing copy should claim before publishing anything. They may be in the middle of repositioning, or the email signoff may need to follow the homepage. Don't guess.
-
----
-
 ## Quick checklist before any external publish
 
 - [ ] Voice matches the existing copy (declarative, plain, no emojis, no marketing-speak)
 - [ ] Numbers cited are accurate (check live site or `recent-subs.sh` for current submission counts)
 - [ ] No claim of "every number is verified" — many are still `seed` provenance
 - [ ] No reference to features not on the live site
-- [ ] City named correctly (or omitted — see above)
+- [ ] No city in headlines, sign-offs, or meta tags (neighborhood names are fine)
 - [ ] Trust signals named correctly (verification is optional, proof is optional, anonymity is default)
 - [ ] Admin URL not referenced
 - [ ] Brand mark is `RentLens.` (with the marigold period)

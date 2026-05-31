@@ -90,7 +90,7 @@ export function ackEmail(p: AckEmailParams): { subject: string; html: string; te
             </tr>
             <tr>
               <td style="padding:0 32px 24px 32px;font-size:11px;color:#bdb29a;">
-                RentLens · rentlens.fyi · Pune, India
+                RentLens · rentlens.fyi
               </td>
             </tr>
           </table>
