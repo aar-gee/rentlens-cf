@@ -8,6 +8,16 @@ All notable changes to RentLens are documented here. Format follows
 
 ### Added
 
+- Area-mismatch flag (RENT-plvqhfmz). Surfaces in admin /submissions
+  (red "area mismatch" badge per row + an "Area MM" count in the stats
+  bar), in the JSON API (`row.areaMismatch` + `summary.area_mismatch`),
+  and in `scripts/recent-subs.sh` (AMM marker + summary line). Computed
+  at query time via LEFT JOIN against societies — true when the
+  submission's society_slug points at a real catalog row AND the typed
+  locality differs from that slug's canonical locality (case- and
+  whitespace-insensitive). No new column, no migration. Doesn't reject
+  the report — just a triage signal that the contributor may have
+  picked the wrong society or the catalog locality is stale.
 - "What we got" summary panel on /submit/success (user request
   2026-05-31). Closes RENT-eqqnvnce — the receipt is on-page instead of
   by email. Shows society/locality, BHK + sqft + furnishing, rent +

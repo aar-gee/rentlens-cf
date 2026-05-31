@@ -192,12 +192,14 @@ adminApp.get("/api/submissions", async (c) => {
   const byVerify: Record<string, number> = { unverified: 0, verified: 0 };
   let newSociety = 0;
   let newArea = 0;
+  let areaMismatch = 0;
   for (const r of rows) {
     byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
     bySpam[r.spamFlag ? "1" : "0"]++;
     byVerify[r.verifyState]++;
     if (r.pendingSocietyId !== "") newSociety++;
     if (r.pendingAreaId !== "") newArea++;
+    if (r.areaMismatch) areaMismatch++;
   }
   return c.json({
     since: f.sinceISO,
@@ -209,6 +211,7 @@ adminApp.get("/api/submissions", async (c) => {
       by_verify: byVerify,
       new_society: newSociety,
       new_area: newArea,
+      area_mismatch: areaMismatch,
     },
     rows,
   });

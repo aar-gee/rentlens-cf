@@ -687,6 +687,7 @@ const SubmissionRow: FC<{ r: SubmissionListRow; last: boolean }> = ({ r, last })
         {r.locality ? <span class="text-ink-faint">· {r.locality}</span> : null}
         {r.pendingSocietyId !== "" ? <Badge tone="marigold">new society</Badge> : null}
         {r.pendingAreaId !== "" ? <Badge tone="marigold">new area</Badge> : null}
+        {r.areaMismatch ? <Badge tone="danger">area mismatch</Badge> : null}
       </div>
       <div class="text-xs text-ink-mute mt-1 num">
         {r.bhk}BHK · {formatINRView(r.monthlyRent)} rent · {formatINRView(r.monthlyMaint)} maint · {r.floorBand || "—"} · {r.furnishing || "—"}
@@ -723,6 +724,7 @@ const StatsBar: FC<{ rows: SubmissionListRow[] }> = ({ rows }) => {
   const published = rows.filter((r) => r.status === "published").length;
   const rejected = rows.filter((r) => r.status === "rejected").length;
   const newSoc = rows.filter((r) => r.pendingSocietyId !== "").length;
+  const areaMm = rows.filter((r) => r.areaMismatch).length;
   const stats: { label: string; value: number }[] = [
     { label: "Total", value: total },
     { label: "Pending", value: pending },
@@ -731,9 +733,10 @@ const StatsBar: FC<{ rows: SubmissionListRow[] }> = ({ rows }) => {
     { label: "Verified", value: verified },
     { label: "Spam", value: spam },
     { label: "New soc", value: newSoc },
+    { label: "Area MM", value: areaMm },
   ];
   return (
-    <div class="bg-white border border-hairline px-5 py-4 mb-6 grid grid-cols-7 gap-4">
+    <div class="bg-white border border-hairline px-5 py-4 mb-6 grid grid-cols-8 gap-4">
       {stats.map((s) => (
         <div>
           <div class="num text-[10px] tracking-[0.14em] uppercase text-ink-faint">{s.label}</div>

@@ -189,6 +189,13 @@ export type SubmissionListRow = {
   spamFlag: boolean;
   ipAddress: string;
   status: string;
+  // RENT-plvqhfmz: true when society_slug points at a real catalog row AND
+  // the typed locality differs from that slug's canonical locality (case +
+  // whitespace insensitive). Doesn't reject the report — just an admin
+  // signal that the contributor may have picked the wrong society or that
+  // the catalog's locality is stale. Computed at query time (LEFT JOIN
+  // against societies) — no submission-row state, no migration needed.
+  areaMismatch: boolean;
 };
 
 export type RecentSubmissionFilters = {
@@ -217,16 +224,28 @@ export async function listRecentSubmissions(
   }
   const limit = Math.min(Math.max(1, filters.limit ?? 200), 500);
   binds.push(limit);
+  // area_mismatch is computed via LEFT JOIN against societies — only fires
+  // when (a) the slug references a real catalog row AND (b) the canonical
+  // locality is non-empty AND (c) typed and canonical differ after a
+  // case+whitespace fold. Catalog rows with locality='' are ignored (no
+  // truth to compare against). Use s.locality / soc.locality aliases so
+  // SELECT * style doesn't collide.
   const sql = `
-    SELECT id, created_at, society_name, society_slug, pending_society_id,
-           locality, pending_area_id, bhk, monthly_rent, monthly_maint,
-           floor_band, furnishing, sqft, deposit, rating_value, rating_quality,
-           rating_owner, note, source_channel, source_detail, mover_name,
-           mover_rating, willing_to_help, help_contact, verify_state,
-           verified_at, spam_flag, ip_address, status
-    FROM submissions
-    WHERE ${conds.join(" AND ")}
-    ORDER BY created_at DESC
+    SELECT s.id, s.created_at, s.society_name, s.society_slug, s.pending_society_id,
+           s.locality, s.pending_area_id, s.bhk, s.monthly_rent, s.monthly_maint,
+           s.floor_band, s.furnishing, s.sqft, s.deposit, s.rating_value, s.rating_quality,
+           s.rating_owner, s.note, s.source_channel, s.source_detail, s.mover_name,
+           s.mover_rating, s.willing_to_help, s.help_contact, s.verify_state,
+           s.verified_at, s.spam_flag, s.ip_address, s.status,
+           CASE WHEN s.society_slug IS NOT NULL
+                 AND soc.locality IS NOT NULL
+                 AND TRIM(soc.locality) != ''
+                 AND LOWER(TRIM(s.locality)) != LOWER(TRIM(soc.locality))
+                THEN 1 ELSE 0 END AS area_mismatch
+    FROM submissions s
+    LEFT JOIN societies soc ON soc.slug = s.society_slug
+    WHERE ${conds.map((c) => c.replace(/^([a-z_]+) (=|>=|<=|>|<|!=) /i, "s.$1 $2 ")).join(" AND ")}
+    ORDER BY s.created_at DESC
     LIMIT ?
   `;
   const { results } = await db
@@ -262,6 +281,7 @@ export async function listRecentSubmissions(
       spam_flag: number;
       ip_address: string;
       status: string;
+      area_mismatch: number;
     }>();
   return results.map((r) => ({
     id: r.id,
@@ -293,6 +313,7 @@ export async function listRecentSubmissions(
     spamFlag: r.spam_flag === 1,
     ipAddress: r.ip_address,
     status: r.status,
+    areaMismatch: r.area_mismatch === 1,
   }));
 }
 

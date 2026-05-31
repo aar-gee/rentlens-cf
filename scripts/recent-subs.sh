@@ -71,12 +71,20 @@ WHERE="created_at >= '${CUTOFF}'"
 if [ -n "$STATUS" ]; then WHERE="${WHERE} AND status = '${STATUS}'"; fi
 if [ -n "$SPAM"   ]; then WHERE="${WHERE} AND spam_flag = ${SPAM}"; fi
 
-SQL_ROWS="SELECT id, created_at, society_name, society_slug, locality, bhk,
-  monthly_rent, monthly_maint, floor_band, furnishing,
-  pending_society_id, pending_area_id,
-  help_contact, willing_to_help, verify_state,
-  spam_flag, ip_address, status, substr(note, 1, 240) AS note_head
-FROM submissions WHERE ${WHERE} ORDER BY created_at DESC LIMIT 500"
+SQL_ROWS="SELECT s.id, s.created_at, s.society_name, s.society_slug, s.locality, s.bhk,
+  s.monthly_rent, s.monthly_maint, s.floor_band, s.furnishing,
+  s.pending_society_id, s.pending_area_id,
+  s.help_contact, s.willing_to_help, s.verify_state,
+  s.spam_flag, s.ip_address, s.status, substr(s.note, 1, 240) AS note_head,
+  CASE WHEN s.society_slug IS NOT NULL
+        AND soc.locality IS NOT NULL
+        AND TRIM(soc.locality) != ''
+        AND LOWER(TRIM(s.locality)) != LOWER(TRIM(soc.locality))
+       THEN 1 ELSE 0 END AS area_mismatch
+FROM submissions s
+LEFT JOIN societies soc ON soc.slug = s.society_slug
+WHERE ${WHERE//created_at/s.created_at}
+ORDER BY s.created_at DESC LIMIT 500"
 
 if [ "$MODE" = "raw" ]; then
   npx wrangler d1 execute "$DB" --remote ${WFLAGS[@]+"${WFLAGS[@]}"} --command "$SQL_ROWS" --json
@@ -86,14 +94,20 @@ fi
 # Pretty mode: one summary then a compact table.
 SQL_SUMMARY="SELECT
   count(*) AS total,
-  SUM(CASE WHEN status='pending'   THEN 1 ELSE 0 END) AS pending,
-  SUM(CASE WHEN status='published' THEN 1 ELSE 0 END) AS published,
-  SUM(CASE WHEN status='rejected'  THEN 1 ELSE 0 END) AS rejected,
-  SUM(CASE WHEN spam_flag=1 THEN 1 ELSE 0 END) AS spam,
-  SUM(CASE WHEN verify_state='verified' THEN 1 ELSE 0 END) AS verified,
-  SUM(CASE WHEN pending_society_id IS NOT NULL THEN 1 ELSE 0 END) AS new_society,
-  SUM(CASE WHEN pending_area_id IS NOT NULL THEN 1 ELSE 0 END) AS new_area
-FROM submissions WHERE ${WHERE}"
+  SUM(CASE WHEN s.status='pending'   THEN 1 ELSE 0 END) AS pending,
+  SUM(CASE WHEN s.status='published' THEN 1 ELSE 0 END) AS published,
+  SUM(CASE WHEN s.status='rejected'  THEN 1 ELSE 0 END) AS rejected,
+  SUM(CASE WHEN s.spam_flag=1 THEN 1 ELSE 0 END) AS spam,
+  SUM(CASE WHEN s.verify_state='verified' THEN 1 ELSE 0 END) AS verified,
+  SUM(CASE WHEN s.pending_society_id IS NOT NULL THEN 1 ELSE 0 END) AS new_society,
+  SUM(CASE WHEN s.pending_area_id IS NOT NULL THEN 1 ELSE 0 END) AS new_area,
+  SUM(CASE WHEN s.society_slug IS NOT NULL
+                AND soc.locality IS NOT NULL
+                AND TRIM(soc.locality) != ''
+                AND LOWER(TRIM(s.locality)) != LOWER(TRIM(soc.locality))
+            THEN 1 ELSE 0 END) AS area_mismatch
+FROM submissions s LEFT JOIN societies soc ON soc.slug = s.society_slug
+WHERE ${WHERE//created_at/s.created_at}"
 
 echo "env=${ENV_ARG:-prod}  db=${DB}  since='${CUTOFF}'  status='${STATUS}'  spam='${SPAM}'"
 echo "-------------------- SUMMARY --------------------"
@@ -122,9 +136,10 @@ else:
         bhk = r['bhk'] or '?'
         sp = 'SPAM' if r['spam_flag'] else '----'
         vr = 'VRFD' if r['verify_state'] == 'verified' else '----'
+        mm = 'AMM' if r.get('area_mismatch') else '---'
         st = (r['status'] or '?')[:8]
         em = r['help_contact'] or '(no email)'
         if len(em) > 28: em = em[:25] + '...'
         ip = (r['ip_address'] or '')[:20]
-        print(f'  {ts}  {r[\"id\"]:9s}  {sp}  {vr}  {st:9s}  {bhk}BHK  ₹{rent:>6}  {soc:32s}  {loc:18s}  {em:28s}  {ip}')
+        print(f'  {ts}  {r[\"id\"]:9s}  {sp}  {vr}  {mm}  {st:9s}  {bhk}BHK  ₹{rent:>6}  {soc:32s}  {loc:18s}  {em:28s}  {ip}')
 "
