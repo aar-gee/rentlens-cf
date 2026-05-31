@@ -208,7 +208,7 @@ const WhyThisExistsSection: FC = () => (
         <div class="p-7 sm:p-10 bg-parchment-deep/40 md:border-r border-hairline border-b md:border-b-0">
           <div class="eyebrow mb-4">Public listing portal</div>
           <div class="num text-[40px] sm:text-[44px] font-medium leading-none mb-2 text-ink-mute tracking-tighter">
-            ₹85,000<span class="text-base text-ink-faint">/mo</span>
+            ₹95,000<span class="text-base text-ink-faint">/mo</span>
           </div>
           <div class="text-sm text-ink-mute mb-6">
             3 BHK · Prestige Shantiniketan · <span class="italic">asking</span>
@@ -234,7 +234,7 @@ const WhyThisExistsSection: FC = () => (
           </div>
           <div class="eyebrow mb-4 !text-marigold-deep">Resident-reported · 27 reports</div>
           <div class="num text-[40px] sm:text-[44px] font-medium leading-none mb-2 tracking-tighter">
-            ₹68,000<span class="text-base text-ink-faint">/mo</span>
+            ₹82,000<span class="text-base text-ink-faint">/mo</span>
           </div>
           <div class="text-sm text-ink-mute mb-6">3 BHK · Prestige Shantiniketan · last 12 months</div>
           <ul class="space-y-2.5 text-sm text-ink">
@@ -258,7 +258,7 @@ const WhyThisExistsSection: FC = () => (
           Fig. 02
         </span>
         <p>
-          <span class="num text-ink font-medium">₹2,04,000</span> a year — the gap between the asking price and what
+          <span class="num text-ink font-medium">₹1,56,000</span> a year — the gap between the asking price and what
           residents actually pay, on a single 3 BHK lease. Seeing it before you sign is why this exists.
         </p>
       </div>
