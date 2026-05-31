@@ -64,7 +64,10 @@ This is the actual copy on the site. Match this register when you write anything
 - **Truth-claim heavy.** The product's whole pitch is "real over asking." Voice leans into that — declarative, slightly contrarian, never breathless.
 - **Single italics for emphasis.** Words like *ask* and *pay* get rendered with a custom `<span class="emph">` / `<span class="emph-accent">`. Don't use ALL CAPS.
 - **Numerals are first-class.** "60-second submission," "Seven quick fields." The site uses a monospace font for numbers (JetBrains Mono); copy treats specific numbers as the point.
-- **No city in outward copy.** The site does NOT claim a city in its tagline, emails, or branding. Email signoffs are just "RentLens · rentlens.fyi" — no "Pune", no "Bengaluru". The homepage mentions the *neighborhoods we currently cover* (Whitefield, Hoodi, Brookefield, Nallurhalli — all Bengaluru clusters) because those are real catalog facts, but the brand is city-agnostic. Don't put a city in headlines, sign-offs, or meta tags. If you need to name where the catalog focuses today, mention the neighborhoods, not the city.
+- **Brand is city-agnostic. Marketing push is Bangalore-first.** Two separate things:
+  - The **product brand** doesn't claim a city. Email signoffs are just "RentLens · rentlens.fyi". The tagline, headlines, and meta tags name no city. The product itself isn't location-specific.
+  - The **launch / marketing push** focuses on Bangalore first — deliberately, to avoid spreading thin. Campaign content, ads, neighborhood content, and outreach can and should target Bangalore (Whitefield, Hoodi, Brookefield, Nallurhalli — the catalog's current focus area). A campaign saying "Bangalore renters, see real rents" is fine; a homepage that says "RentLens · Bangalore" is not.
+  - Practical rule: city names belong in *campaign-scoped* artifacts (landing pages for a campaign, social ads, neighborhood-targeted content). Not in evergreen brand artifacts (homepage hero, email signoffs, About page, OG meta tags).
 
 ---
 
