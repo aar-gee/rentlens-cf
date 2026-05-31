@@ -11,6 +11,7 @@ export const Footer: FC<{ figLabel?: string }> = ({ figLabel }) => (
         <span class="text-ink-faint">Built in Bengaluru · 2026</span>
       </div>
       <div class="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-ink-mute">
+        <a href="/about" class="link-u">About</a>
         <a href="/how-it-works" class="link-u">Methodology</a>
         <a href="/how-it-works#faq" class="link-u">FAQ</a>
         <a href="/privacy" class="link-u">Privacy</a>

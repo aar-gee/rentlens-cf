@@ -10,6 +10,7 @@ import { MoverResults } from "./views/components/mover-results";
 import { listFeatured, filterFeatured, search, getBySlug, listAll } from "./data/society";
 import { homeStats } from "./data/stats";
 import { SocietiesIndex } from "./views/pages/societies";
+import { About } from "./views/pages/about";
 import { robotsTxt, buildSitemap } from "./lib/seo";
 import { societyDetailBySlug } from "./data/society-detail";
 import { Contact, ContactSuccess } from "./views/pages/contact";
@@ -778,6 +779,7 @@ app.get("/sitemap.xml", async (c) => {
 });
 
 // ---- Static content pages ----
+app.get("/about", async (c) => c.html(<About stats={await homeStats(c.env.DB)} />));
 app.get("/how-it-works", (c) => c.html(<HowItWorks />));
 app.get("/privacy", (c) => c.html(<Privacy />));
 app.get("/terms", (c) => c.html(<Terms />));

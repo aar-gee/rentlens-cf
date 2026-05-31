@@ -49,6 +49,7 @@ export function robotsTxt(origin: string): string {
 const STATIC_ROUTES: ReadonlyArray<{ path: string; changefreq: string; priority: string }> = [
   { path: "/", changefreq: "daily", priority: "1.0" },
   { path: "/societies", changefreq: "daily", priority: "0.9" },
+  { path: "/about", changefreq: "monthly", priority: "0.6" },
   { path: "/how-it-works", changefreq: "monthly", priority: "0.6" },
   { path: "/submit", changefreq: "monthly", priority: "0.7" },
   { path: "/contact", changefreq: "yearly", priority: "0.3" },
