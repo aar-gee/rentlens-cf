@@ -6,6 +6,7 @@ import { isCanonicalArea } from "../data/area";
 import { isCanonicalMover } from "../data/mover";
 import { findOrCreatePendingArea, findOrCreatePendingSociety } from "../data/pending";
 import { isProbableSpam } from "./spam";
+import { generateProofToken, STAGED_PREFIX } from "./proof";
 
 export type Step1Data = {
   societyName: string;
@@ -22,6 +23,13 @@ export type Step1Data = {
   // fires at the final persist boundary (Step 1 skip path OR Step 3 submit),
   // not on Step 1 continue — the submission row doesn't exist yet then.
   email: string;
+  // Inline proof upload: R2 key produced by /submit/stage-proof when the user
+  // picks a file at Step 1. JS uploads on file-pick + writes the returned
+  // key into a hidden input; Step1Hidden ferries it through Step 2 → 3. On
+  // persist, buildSubmission promotes this into the submission's
+  // proof_upload_key (no rename — the staged/ prefix stays). Empty when no
+  // inline upload happened.
+  stagedProofKey: string;
 };
 
 export type Step2Data = {
@@ -55,6 +63,7 @@ export const emptyStep1 = (): Step1Data => ({
   floorBand: "",
   furnishing: "",
   email: "",
+  stagedProofKey: "",
 });
 
 export const emptyStep2 = (): Step2Data => ({
@@ -111,6 +120,7 @@ export function parseStep1(b: Body): Step1Data {
     floorBand: str(b, "floor_band"),
     furnishing: str(b, "furnishing"),
     email: str(b, "email"),
+    stagedProofKey: str(b, "staged_proof_key"),
   };
 }
 
@@ -216,6 +226,13 @@ export function buildSubmission(s1: Step1Data, s2: Step2Data): Submission {
   // independent — it gates "intros allowed", and downstream consumers must
   // additionally check verify_state='verified' before contacting.
   sub.helpContact = s2.helpContact !== "" ? s2.helpContact : s1.email;
+  // Inline proof promotion. Defensive: only accept keys that look like our
+  // staged shape (`staged/<rand>/<rand>.<ext>`) so a hand-crafted POST can't
+  // make us link a fake R2 path. Empty when no inline upload — the
+  // post-submit /proof/<token> path still works in that case.
+  if (s1.stagedProofKey !== "" && s1.stagedProofKey.startsWith(STAGED_PREFIX)) {
+    sub.proofUploadKey = s1.stagedProofKey;
+  }
 
   sub.sqft = optInt(s2.sqft);
   sub.deposit = optInt(s2.deposit);
@@ -254,5 +271,19 @@ export async function persistSubmission(db: D1Database, sub: Submission): Promis
   // of the count for the next attempt. Empty signals skip their own rule
   // (anonymous helpContact + local dev with no CF-Connecting-IP both no-op).
   sub.spamFlag = await isProbableSpam(db, sub.helpContact, sub.ipAddress);
+  // Proof-upload token (RENT-tscofnqc / RENT-ngelwosv). Issued when the
+  // contributor gave us an email AND wasn't flagged as spam AND didn't
+  // upload inline — the ack/proof-prompt mail carries a /proof/<token>
+  // link they can use later. Cleared by markProofUploaded() on success.
+  // Cost-control: spam-flagged contributors get no token (no upload
+  // affordance, no R2 writes from them).
+  if (
+    sub.helpContact !== "" &&
+    sub.proofUploadKey === "" &&
+    sub.proofUploadToken === "" &&
+    !sub.spamFlag
+  ) {
+    sub.proofUploadToken = generateProofToken();
+  }
   return insertSubmission(db, sub);
 }

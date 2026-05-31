@@ -179,6 +179,112 @@ export const FORM_ERROR_CLEAR_SCRIPT = `
 })();
 `;
 
+// Client-side image downscale for the /proof upload form. Photos from
+// phones are often 3-8 MB; the server limit is 500 KB. Auto-resize via
+// canvas before upload so most uploads "just work" without the user
+// having to manually compress.
+//
+// Flow:
+//   1. On file change, if the file is a PDF: show its size; reject in-UI
+//      if > 500 KB (server still validates; this just avoids a roundtrip).
+//   2. If it's an image: downscale to fit within 1600x1600 (preserves
+//      typical lease-doc legibility), JPEG-encode at q=0.85, and replace
+//      the original file in the input via DataTransfer. Iteratively
+//      lower the quality if the result is still > 500 KB.
+//   3. Display the final size + a "ready" indicator before the user
+//      clicks Upload.
+//
+// Bails out to "submit as-is" if downscaling fails (very old browsers,
+// unsupported formats) — the server then rejects with a clean error.
+export const PROOF_UPLOAD_SCRIPT = `
+(function() {
+  var MAX_BYTES = 500 * 1024;
+  var TARGET_DIM = 1600;
+  function fmt(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1024*1024) return (n/1024).toFixed(0) + ' KB';
+    return (n/1024/1024).toFixed(2) + ' MB';
+  }
+  function status(msg, tone) {
+    var el = document.getElementById('proof-status');
+    if (!el) return;
+    el.removeAttribute('hidden');
+    el.textContent = msg;
+    el.className = 'text-xs leading-relaxed text-left ' + (tone === 'err' ? 'text-danger' : tone === 'ok' ? 'text-marigold-deep' : 'text-ink-faint');
+  }
+  function replaceFile(input, blob, name) {
+    try {
+      var dt = new DataTransfer();
+      var f = new File([blob], name, {type: blob.type, lastModified: Date.now()});
+      dt.items.add(f);
+      input.files = dt.files;
+      return true;
+    } catch (e) { return false; }
+  }
+  async function downscale(file) {
+    var img = new Image();
+    var url = URL.createObjectURL(file);
+    try {
+      await new Promise(function(res, rej) { img.onload = res; img.onerror = rej; img.src = url; });
+      var w = img.naturalWidth, h = img.naturalHeight;
+      var scale = Math.min(1, TARGET_DIM / Math.max(w, h));
+      var tw = Math.round(w * scale), th = Math.round(h * scale);
+      var canvas = document.createElement('canvas');
+      canvas.width = tw; canvas.height = th;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, tw, th);
+      var qualities = [0.85, 0.7, 0.55, 0.4];
+      for (var i = 0; i < qualities.length; i++) {
+        var blob = await new Promise(function(res) { canvas.toBlob(res, 'image/jpeg', qualities[i]); });
+        if (blob && blob.size <= MAX_BYTES) return blob;
+      }
+      // Last attempt — return whatever blob we have.
+      return await new Promise(function(res) { canvas.toBlob(res, 'image/jpeg', 0.35); });
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+  async function handleChange(e) {
+    var input = e.target;
+    if (!input || input.id !== 'proof-file' || !input.files || input.files.length === 0) return;
+    var file = input.files[0];
+    if (file.type === 'application/pdf') {
+      if (file.size > MAX_BYTES) {
+        status('PDF is ' + fmt(file.size) + ' — please compress to under ' + fmt(MAX_BYTES) + ' and try again.', 'err');
+      } else {
+        status('Ready: ' + fmt(file.size) + ' PDF.', 'ok');
+      }
+      return;
+    }
+    if (file.type.indexOf('image/') !== 0) {
+      status('Pick a JPG, PNG, WebP, HEIC, or PDF.', 'err');
+      return;
+    }
+    if (file.size <= MAX_BYTES) {
+      status('Ready: ' + fmt(file.size) + ' image.', 'ok');
+      return;
+    }
+    status('Shrinking ' + fmt(file.size) + ' photo…', 'info');
+    try {
+      var shrunk = await downscale(file);
+      if (!shrunk) {
+        status('Could not shrink the photo here. Server will check — if it bounces, please use a smaller image.', 'err');
+        return;
+      }
+      var ok = replaceFile(input, shrunk, (file.name || 'photo').replace(/\\.[^.]+$/, '') + '.jpg');
+      if (ok) {
+        status('Shrunk to ' + fmt(shrunk.size) + (shrunk.size > MAX_BYTES ? ' (still large; server may reject)' : ' — ready.'), shrunk.size > MAX_BYTES ? 'err' : 'ok');
+      } else {
+        status('Could not swap the file in your browser. Upload anyway and the server will check.', 'err');
+      }
+    } catch (e) {
+      status('Could not shrink the photo here. Server will check.', 'err');
+    }
+  }
+  document.addEventListener('change', handleChange);
+})();
+`;
+
 // Inline email-format validation on Step 1 — validate as the user types,
 // 500ms debounce, with a "too early to judge" gate so we don't flash an
 // error while they're mid-domain. Pairs with the existing server-side
@@ -412,6 +518,174 @@ export const HTMX_4XX_SWAP_SCRIPT = `
   }
   if (!register()) {
     document.addEventListener('DOMContentLoaded', register);
+  }
+})();
+`;
+
+// Step 1 inline proof upload: on file-pick at #step1-proof-file, downscale
+// images via canvas (same logic as PROOF_UPLOAD_SCRIPT, but standalone here
+// so the Step 1 page doesn't also need the /proof page's status markup) and
+// POST to /submit/stage-proof. The server response carries the staged R2
+// key, which we write into #staged-proof-key. That hidden input is part of
+// the form + Step1Hidden, so it ferries through Step 2 → 3.
+//
+// Behavior:
+//   - On valid file:
+//       1. Disable picker, show "Uploading…"
+//       2. Downscale (if image) or pass-through (if PDF)
+//       3. fetch POST to /submit/stage-proof
+//       4. On 2xx: write key to hidden input, show "✓ Proof attached. Remove"
+//       5. On 4xx/5xx: show error, leave picker enabled for retry
+//   - On "Remove" click: clear the hidden key + reset visible controls
+//   - On Step-1 422 re-render with a staged key already in step1.stagedProofKey:
+//     server renders the controls hidden + status shown (no JS needed for that)
+export const STAGE_PROOF_SCRIPT = `
+(function() {
+  var MAX_BYTES = 500 * 1024;
+  var TARGET_DIM = 1600;
+  function fmt(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1024*1024) return (n/1024).toFixed(0) + ' KB';
+    return (n/1024/1024).toFixed(2) + ' MB';
+  }
+  function $(id) { return document.getElementById(id); }
+  function setStatus(html, tone) {
+    var s = $('step1-proof-status');
+    if (!s) return;
+    s.removeAttribute('hidden');
+    s.innerHTML = html;
+    s.className = 'text-xs leading-relaxed ' + (tone === 'err' ? 'text-danger' : tone === 'ok' ? 'text-marigold-deep' : 'text-ink-mute');
+  }
+  function clearStatus() {
+    var s = $('step1-proof-status');
+    if (s) { s.setAttribute('hidden', ''); s.innerHTML = ''; }
+  }
+  function setControlsVisible(v) {
+    var c = $('step1-proof-controls');
+    if (!c) return;
+    if (v) c.removeAttribute('hidden'); else c.setAttribute('hidden', '');
+  }
+  function setHiddenKey(key) {
+    var h = $('staged-proof-key');
+    if (h) h.value = key;
+  }
+  function getHiddenKey() {
+    var h = $('staged-proof-key');
+    return h ? h.value : '';
+  }
+  async function downscale(file) {
+    var img = new Image();
+    var url = URL.createObjectURL(file);
+    try {
+      await new Promise(function(res, rej) { img.onload = res; img.onerror = rej; img.src = url; });
+      var w = img.naturalWidth, h = img.naturalHeight;
+      var scale = Math.min(1, TARGET_DIM / Math.max(w, h));
+      var tw = Math.round(w * scale), th = Math.round(h * scale);
+      var canvas = document.createElement('canvas');
+      canvas.width = tw; canvas.height = th;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, tw, th);
+      var qualities = [0.85, 0.7, 0.55, 0.4];
+      for (var i = 0; i < qualities.length; i++) {
+        var blob = await new Promise(function(res) { canvas.toBlob(res, 'image/jpeg', qualities[i]); });
+        if (blob && blob.size <= MAX_BYTES) return blob;
+      }
+      return await new Promise(function(res) { canvas.toBlob(res, 'image/jpeg', 0.35); });
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+  async function upload(blob, name) {
+    var fd = new FormData();
+    fd.append('file', blob, name);
+    var resp = await fetch('/submit/stage-proof', { method: 'POST', body: fd });
+    var json = null;
+    try { json = await resp.json(); } catch (e) {}
+    return { ok: resp.ok, status: resp.status, json: json };
+  }
+  function successMarkup() {
+    return '<span class="text-marigold-deep">✓ Proof attached. <button type="button" data-step1-proof-clear class="underline hover:text-ink-mute">Remove</button></span>';
+  }
+  async function handlePick(file) {
+    if (!file) return;
+    if (file.type === 'application/pdf') {
+      if (file.size > MAX_BYTES) {
+        setStatus('PDF is ' + fmt(file.size) + ' — compress to under ' + fmt(MAX_BYTES) + ' and try again.', 'err');
+        return;
+      }
+      setStatus('Uploading ' + fmt(file.size) + ' PDF…', 'info');
+      var r = await upload(file, file.name || 'proof.pdf');
+      if (r.ok && r.json && r.json.key) {
+        setHiddenKey(r.json.key);
+        setControlsVisible(false);
+        setStatus(successMarkup(), 'ok');
+      } else {
+        setStatus('Upload failed (' + r.status + '). Please try again.', 'err');
+      }
+      return;
+    }
+    if (file.type.indexOf('image/') !== 0) {
+      setStatus('Pick a JPG, PNG, WebP, HEIC, or PDF.', 'err');
+      return;
+    }
+    var blob = file;
+    if (file.size > MAX_BYTES) {
+      setStatus('Shrinking ' + fmt(file.size) + ' photo…', 'info');
+      try { blob = await downscale(file); } catch (e) {
+        setStatus('Could not shrink the photo here — upload anyway and the server will check.', 'err');
+        return;
+      }
+      if (!blob) {
+        setStatus('Could not shrink the photo. Try a smaller image.', 'err');
+        return;
+      }
+    }
+    if (blob.size > MAX_BYTES) {
+      setStatus('Image is still ' + fmt(blob.size) + ' after shrink. Pick a smaller one.', 'err');
+      return;
+    }
+    setStatus('Uploading ' + fmt(blob.size) + '…', 'info');
+    var name = (file.name || 'photo').replace(/\\.[^.]+$/, '') + '.jpg';
+    var r = await upload(blob, name);
+    if (r.ok && r.json && r.json.key) {
+      setHiddenKey(r.json.key);
+      setControlsVisible(false);
+      setStatus(successMarkup(), 'ok');
+    } else {
+      var err = (r.json && r.json.error) || ('http_' + r.status);
+      setStatus('Upload failed (' + err + '). Please try again.', 'err');
+    }
+  }
+  function handleClear() {
+    setHiddenKey('');
+    setControlsVisible(true);
+    clearStatus();
+    var picker = $('step1-proof-file');
+    if (picker) picker.value = '';
+  }
+  document.addEventListener('change', function(e) {
+    var t = e.target;
+    if (!t || t.id !== 'step1-proof-file') return;
+    if (!t.files || t.files.length === 0) return;
+    handlePick(t.files[0]);
+  });
+  document.addEventListener('click', function(e) {
+    var t = e.target.closest ? e.target.closest('[data-step1-proof-clear]') : null;
+    if (t) { e.preventDefault(); handleClear(); }
+  });
+  // Init pass: if FORM_PERSIST restored a staged_proof_key from localStorage
+  // after a refresh / tab-reopen, flip the UI to the "attached" state. Runs
+  // after DOMContentLoaded so the persist script has already restored.
+  function initSyncFromHidden() {
+    if (getHiddenKey() !== '') {
+      setControlsVisible(false);
+      setStatus(successMarkup(), 'ok');
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() { setTimeout(initSyncFromHidden, 50); });
+  } else {
+    setTimeout(initSyncFromHidden, 50);
   }
 })();
 `;

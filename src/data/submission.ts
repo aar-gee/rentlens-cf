@@ -40,6 +40,13 @@ export type Submission = {
   // public UI. Retention policy is informal for now — older rows can be
   // purged periodically as traffic grows.
   ipAddress: string;
+  // Optional proof-doc upload (RENT-tscofnqc / RENT-ngelwosv). proofUploadKey
+  // is the R2 object key once a file has landed (empty otherwise);
+  // proofUploadToken is the single-use token for the /proof/<token> late-
+  // upload page (set at insert when helpContact is present + no inline
+  // upload; cleared after a successful upload).
+  proofUploadKey: string;
+  proofUploadToken: string;
 };
 
 // newSubmission returns a blank submission with sensible zero-values.
@@ -74,6 +81,8 @@ export function newSubmission(): Submission {
     helpContact: "",
     spamFlag: false,
     ipAddress: "",
+    proofUploadKey: "",
+    proofUploadToken: "",
   };
 }
 
@@ -90,8 +99,9 @@ export async function insertSubmission(db: D1Database, sub: Submission): Promise
         sqft, deposit, block, move_in_month, move_out_month,
         rating_value, rating_quality, rating_owner, note,
         source_channel, source_detail, mover_name, mover_rating,
-        willing_to_help, help_contact, spam_flag, ip_address
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        willing_to_help, help_contact, spam_flag, ip_address,
+        proof_upload_key, proof_upload_token
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       sub.id,
@@ -122,6 +132,8 @@ export async function insertSubmission(db: D1Database, sub: Submission): Promise
       sub.helpContact,
       sub.spamFlag ? 1 : 0,
       sub.ipAddress,
+      sub.proofUploadKey,
+      sub.proofUploadToken,
     )
     .run();
   return sub.id;
@@ -141,6 +153,9 @@ type SubmissionRow = {
   furnishing: string;
   sqft: number | null;
   deposit: number | null;
+  help_contact: string;
+  proof_upload_key: string;
+  proof_upload_token: string;
 };
 
 export async function countSubmissions(db: D1Database): Promise<number> {
@@ -189,6 +204,9 @@ export type SubmissionListRow = {
   spamFlag: boolean;
   ipAddress: string;
   status: string;
+  // RENT-tscofnqc / RENT-ngelwosv: true when a proof file has been uploaded
+  // to R2 for this submission (proof_upload_key non-empty).
+  hasProof: boolean;
   // RENT-plvqhfmz: true when society_slug points at a real catalog row AND
   // the typed locality differs from that slug's canonical locality (case +
   // whitespace insensitive). Doesn't reject the report — just an admin
@@ -236,7 +254,7 @@ export async function listRecentSubmissions(
            s.floor_band, s.furnishing, s.sqft, s.deposit, s.rating_value, s.rating_quality,
            s.rating_owner, s.note, s.source_channel, s.source_detail, s.mover_name,
            s.mover_rating, s.willing_to_help, s.help_contact, s.verify_state,
-           s.verified_at, s.spam_flag, s.ip_address, s.status,
+           s.verified_at, s.spam_flag, s.ip_address, s.status, s.proof_upload_key,
            CASE WHEN s.society_slug IS NOT NULL
                  AND soc.locality IS NOT NULL
                  AND TRIM(soc.locality) != ''
@@ -281,6 +299,7 @@ export async function listRecentSubmissions(
       spam_flag: number;
       ip_address: string;
       status: string;
+      proof_upload_key: string;
       area_mismatch: number;
     }>();
   return results.map((r) => ({
@@ -313,6 +332,7 @@ export async function listRecentSubmissions(
     spamFlag: r.spam_flag === 1,
     ipAddress: r.ip_address,
     status: r.status,
+    hasProof: (r.proof_upload_key ?? "") !== "",
     areaMismatch: r.area_mismatch === 1,
   }));
 }
@@ -409,6 +429,62 @@ export async function getSubmissionForVerify(db: D1Database, id: string): Promis
   };
 }
 
+// SubmissionProofView — minimal row for the /proof/<token> upload page.
+// Carries just the bits the page renders (society name + status) and the
+// info we need to consume the token. Separate from getSubmissionForVerify
+// (which is for the email-verify UI flow).
+export type SubmissionProofView = {
+  id: string;
+  societyName: string;
+  societySlug: string;
+  helpContact: string;
+  hasProof: boolean;
+};
+
+export async function getSubmissionByProofToken(
+  db: D1Database,
+  token: string,
+): Promise<SubmissionProofView | null> {
+  if (token === "") return null;
+  const row = await db
+    .prepare(
+      `SELECT id, society_name, society_slug, help_contact, proof_upload_key
+       FROM submissions WHERE proof_upload_token = ?`,
+    )
+    .bind(token)
+    .first<{
+      id: string;
+      society_name: string;
+      society_slug: string | null;
+      help_contact: string;
+      proof_upload_key: string;
+    }>();
+  if (!row) return null;
+  return {
+    id: row.id,
+    societyName: row.society_name,
+    societySlug: row.society_slug ?? "",
+    helpContact: row.help_contact,
+    hasProof: row.proof_upload_key !== "",
+  };
+}
+
+// markProofUploaded — record the R2 object key on the submission. The token
+// is intentionally NOT cleared so a user who refreshes / re-clicks the email
+// link lands on the friendly "Proof received" page (single-use is enforced
+// by the proof_upload_key check on /proof/:token POST, not by the token's
+// presence). Used by both upload paths (Step 1 inline + late /proof/:token).
+export async function markProofUploaded(
+  db: D1Database,
+  submissionId: string,
+  r2Key: string,
+): Promise<void> {
+  await db
+    .prepare(`UPDATE submissions SET proof_upload_key = ? WHERE id = ?`)
+    .bind(r2Key, submissionId)
+    .run();
+}
+
 // getSubmissionById returns the (partial) Submission the success page needs.
 // Includes society + locality + pending links + the unit/rent core (bhk,
 // rent, maint, floor_band, furnishing, sqft, deposit) so the "here's what
@@ -418,7 +494,8 @@ export async function getSubmissionById(db: D1Database, id: string): Promise<Sub
   const row = await db
     .prepare(
       `SELECT id, society_name, society_slug, pending_society_id, locality, pending_area_id,
-              bhk, monthly_rent, monthly_maint, floor_band, furnishing, sqft, deposit
+              bhk, monthly_rent, monthly_maint, floor_band, furnishing, sqft, deposit,
+              help_contact, proof_upload_key, proof_upload_token
        FROM submissions WHERE id = ?`,
     )
     .bind(id)
@@ -438,5 +515,8 @@ export async function getSubmissionById(db: D1Database, id: string): Promise<Sub
   sub.furnishing = row.furnishing;
   sub.sqft = row.sqft;
   sub.deposit = row.deposit;
+  sub.helpContact = row.help_contact;
+  sub.proofUploadKey = row.proof_upload_key;
+  sub.proofUploadToken = row.proof_upload_token;
   return sub;
 }

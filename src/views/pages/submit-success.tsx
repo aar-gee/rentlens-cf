@@ -161,6 +161,19 @@ export const SubmitSuccess: FC<{ sub: Submission }> = ({ sub }) => (
           </div>
         ) : null}
         <SubmissionAck sub={sub} />
+        {sub.id !== "" && sub.helpContact !== "" && sub.proofUploadKey === "" && sub.proofUploadToken !== "" ? (
+          <div class="mt-6 text-center">
+            <a
+              href={`/proof/${sub.proofUploadToken}`}
+              class="inline-flex items-center gap-2 text-sm font-medium text-marigold-deep hover:text-marigold underline"
+            >
+              Add a rental agreement →
+            </a>
+            <div class="text-xs text-ink-faint mt-1">
+              Optional. Verified reports are weighted more heavily.
+            </div>
+          </div>
+        ) : null}
         <div class="mt-10 bg-parchment-deep/30 border-l-2 border-marigold p-4 text-left max-w-[560px] mx-auto">
           <div class="flex items-start gap-3">
             <span class="num text-[10px] text-marigold-deep tracking-[0.14em] uppercase mt-0.5 flex-shrink-0">

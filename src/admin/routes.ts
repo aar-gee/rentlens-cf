@@ -2,7 +2,7 @@
 // Port of admin/server.go route table + admin/handlers.go.
 import { Hono } from "hono";
 import { adminAuth } from "./auth";
-import { Dashboard, PendingSocietiesQueue, PendingAreasQueue, MessagesQueue, ActionResult, BuildersPage, SubmissionsQueue } from "../views/admin/ui";
+import { Dashboard, PendingSocietiesQueue, PendingAreasQueue, MessagesQueue, ActionResult, BuildersPage, SubmissionsQueue, ProofViewer } from "../views/admin/ui";
 import { countPublished, publishedSlugs } from "../data/society";
 import { listBuilders, createBuilder } from "../data/builders";
 import { CANONICAL_AREAS } from "../data/area";
@@ -36,6 +36,7 @@ type AdminBindings = {
   DB: D1Database;
   ADMIN_USER?: string;
   ADMIN_PASS?: string;
+  PROOFS?: R2Bucket;
 };
 
 // strict:false so the dashboard matches both the mount root with and without a
@@ -193,6 +194,7 @@ adminApp.get("/api/submissions", async (c) => {
   let newSociety = 0;
   let newArea = 0;
   let areaMismatch = 0;
+  let proofs = 0;
   for (const r of rows) {
     byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
     bySpam[r.spamFlag ? "1" : "0"]++;
@@ -200,6 +202,7 @@ adminApp.get("/api/submissions", async (c) => {
     if (r.pendingSocietyId !== "") newSociety++;
     if (r.pendingAreaId !== "") newArea++;
     if (r.areaMismatch) areaMismatch++;
+    if (r.hasProof) proofs++;
   }
   return c.json({
     since: f.sinceISO,
@@ -212,9 +215,92 @@ adminApp.get("/api/submissions", async (c) => {
       new_society: newSociety,
       new_area: newArea,
       area_mismatch: areaMismatch,
+      proofs,
     },
     rows,
   });
+});
+
+// Admin proof viewer — HTML wrapper that frames the uploaded file with
+// submission context. Renders an embedded preview + the same metadata the
+// admin would otherwise have to cross-reference in the /submissions table.
+//
+// The raw bytes live at /<prefix>/proof/<id> (below); this page just sets
+// the preview src to that URL so the worker doesn't have to buffer the
+// file into the HTML response.
+adminApp.get("/proof/:id/view", async (c) => {
+  const id = c.req.param("id");
+  if (!c.env.PROOFS) return c.text("PROOFS not bound", 503);
+  const r = await c.env.DB.prepare(
+    `SELECT id, created_at, society_name, society_slug, locality, bhk,
+            monthly_rent, monthly_maint, furnishing, help_contact,
+            verify_state, spam_flag, status, proof_upload_key
+       FROM submissions WHERE id = ?`,
+  )
+    .bind(id)
+    .first<{
+      id: string;
+      created_at: string;
+      society_name: string;
+      society_slug: string | null;
+      locality: string;
+      bhk: string;
+      monthly_rent: number;
+      monthly_maint: number;
+      furnishing: string;
+      help_contact: string;
+      verify_state: string;
+      spam_flag: number;
+      status: string;
+      proof_upload_key: string;
+    }>();
+  if (!r || !r.proof_upload_key) return c.text("not found", 404);
+  // Pull just the content type from R2 (HEAD-ish; head() returns just the
+  // metadata without streaming the body — cheap Class-B op).
+  const head = await c.env.PROOFS.head(r.proof_upload_key);
+  const contentType = head?.httpMetadata?.contentType ?? "";
+  return c.html(
+    ProofViewer(
+      {
+        id: r.id,
+        createdAt: r.created_at,
+        societyName: r.society_name,
+        societySlug: r.society_slug ?? "",
+        locality: r.locality,
+        bhk: r.bhk,
+        monthlyRent: r.monthly_rent,
+        monthlyMaint: r.monthly_maint,
+        furnishing: r.furnishing,
+        helpContact: r.help_contact,
+        verifyState: r.verify_state === "verified" ? "verified" : "unverified",
+        spamFlag: r.spam_flag === 1,
+        status: r.status,
+        proofUploadKey: r.proof_upload_key,
+        proofContentType: contentType,
+      },
+      // Relative path: /<prefix>/proof/<id>/view → ../<id> = /<prefix>/proof/<id>.
+      `../${id}`,
+    ),
+  );
+});
+
+// Admin proof raw stream — proxies the R2 object. Streams the original
+// bytes with the stored content-type. 404 when no proof on file; 503 when
+// R2 isn't bound.
+adminApp.get("/proof/:id", async (c) => {
+  const id = c.req.param("id");
+  if (!c.env.PROOFS) return c.text("PROOFS not bound", 503);
+  const r = await c.env.DB.prepare(`SELECT proof_upload_key FROM submissions WHERE id = ?`).bind(id).first<{
+    proof_upload_key: string;
+  }>();
+  if (!r || !r.proof_upload_key) return c.text("not found", 404);
+  const obj = await c.env.PROOFS.get(r.proof_upload_key);
+  if (!obj) return c.text("not found in R2", 404);
+  const h = new Headers();
+  obj.writeHttpMetadata(h);
+  h.set("Cache-Control", "private, no-store");
+  h.set("Content-Disposition", `inline; filename="proof-${id}"`);
+  return new Response(obj.body, { headers: h });
 });
 
 // ---- Pending-society actions ----

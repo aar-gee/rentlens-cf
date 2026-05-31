@@ -23,6 +23,48 @@ All notable changes to RentLens are documented here. Format follows
   On-site `/notes` blog (TS-module posts, Article JSON-LD) with a launch
   post on asking-vs-actual Bengaluru rents. (RENT-dbimvled, -bbseylts,
   -xjsckcob, -jritchmx, -tpfunlby, -aruxinbc.)
+- Inline rental-agreement upload on Step 1 of /submit
+  (RENT-tscofnqc completion). New POST `/submit/stage-proof` accepts a
+  multipart file, writes to R2 under `staged/<rand>.<ext>`, and returns
+  the R2 key as JSON. STAGE_PROOF_SCRIPT (client-side) hooks the file
+  input on Step 1: downscales images via canvas, uploads via fetch on
+  pick, writes the returned key into a hidden `staged_proof_key` input.
+  Step1Hidden ferries the key through Step 2 → 3; buildSubmission
+  promotes it to `proof_upload_key` on persist (defense: only accepts
+  keys prefixed with `staged/`, rejecting hand-crafted forms that try to
+  point at arbitrary R2 paths). Per-IP rate cap of 10 stage uploads/24h
+  (counts both inline + late paths). Content-Length pre-check at 600 KB.
+  Lifecycle rule on `staged/` prefix auto-purges orphans after 1 day so
+  abandoned form sessions don't accumulate storage cost.
+- Admin proof viewer at `<prefix>/proof/<id>/view`. HTML wrapper around
+  the existing raw-stream endpoint: shows submission context (society,
+  locality, rent, signals), an inline preview (`<img>` for images,
+  `<embed>` for PDFs, fallback message for unrecognized types), and a
+  raw-download link. Submissions table's "proof" badge now links to it
+  ("proof →"). Uses R2 `head()` to read content-type without streaming
+  the body (cheap Class-B op).
+- Optional rental-agreement proof upload (RENT-tscofnqc /
+  RENT-ngelwosv). New R2 bucket `rentlens-proofs` (staging:
+  `rentlens-proofs-staging`) bound as `env.PROOFS`. Migration 0010
+  adds `proof_upload_key` + `proof_upload_token` to submissions.
+  `/proof/<token>` page accepts a single file (JPG / PNG / WebP /
+  HEIC / PDF, 500 KB max); client-side image downscale via canvas
+  keeps phone photos under the cap. Ack/proof-prompt email
+  (levels.fyi-style copy: thanks, here's what we got, optional
+  proof link) sent automatically when the contributor gave us an
+  email + isn't spam-flagged + didn't upload inline. Success page
+  also shows "Add a rental agreement →" link. Admin: `hasProof`
+  badge per row + `Proofs` stat-bar count + JSON summary field +
+  `PRF` column in `scripts/recent-subs.sh`. Admin proof viewer at
+  `<prefix>/proof/<sub_id>` streams the R2 object behind basic-auth.
+
+  Cost-control: spam-flagged submissions get no token (no upload
+  surface, no R2 writes from them). Pre-`parseBody` Content-Length
+  check rejects > 600 KB requests at 413. Per-IP daily cap of 5
+  successful uploads. Turnstile gate on the upload POST. Single-use
+  via hasProof check (token stays for friendly re-render on refresh
+  but second POST short-circuits before R2). R2 lifecycle: prod
+  auto-purges objects > 90 days, staging > 30 days.
 - Area-mismatch flag (RENT-plvqhfmz). Surfaces in admin /submissions
   (red "area mismatch" badge per row + an "Area MM" count in the stats
   bar), in the JSON API (`row.areaMismatch` + `summary.area_mismatch`),
