@@ -6,6 +6,7 @@ import { Header } from "../components/header";
 import { Footer } from "../components/footer";
 import { Breadcrumb, type BreadcrumbItem } from "../components/breadcrumb";
 import { ContributeCTA } from "../components/contribute-cta";
+import { ShareRow } from "../components/share-row";
 import { SummaryMetricCard, type SummaryMetricProps } from "../components/summary-metric-card";
 import { RentBreakdownTable } from "../components/rent-breakdown-table";
 import { MaintenanceCard, FurnishingPremiumCard, LeaseNormsCard } from "../components/sidebar-cards";
@@ -412,10 +413,25 @@ const Nearby: FC<{ d: SocietyDetail }> = ({ d }) => (
 );
 
 const breadcrumbItems = (d: SocietyDetail): BreadcrumbItem[] => [
-  { label: "All societies", href: "/" },
+  { label: "All societies", href: "/societies" },
   { label: d.locality, href: "#" },
   { label: d.name },
 ];
+
+// Share message for a society page. Leads with a concrete number when we have
+// one (most shareable), falls back to a clean generic otherwise.
+function detailShareText(d: SocietyDetail): string {
+  const m = d.medianRent3BHK ?? d.medianRent2BHK;
+  const bhk = d.medianRent3BHK ? "3 BHK" : "2 BHK";
+  if (m != null) {
+    return `${bhk} at ${d.name}, ${d.locality} rents around ${formatINR(m)}/mo — real resident-reported numbers on RentLens, not asking prices.`;
+  }
+  return `Real resident-reported rent for ${d.name}, ${d.locality} on RentLens — what people actually pay, not asking prices.`;
+}
+
+function sparseShareText(soc: SocietyRecord): string {
+  return `Know the rent at ${soc.name}, ${soc.locality}? RentLens is collecting real resident-reported numbers — add yours in 60 seconds.`;
+}
 
 export const Society: FC<{ detail: SocietyDetail }> = ({ detail }) => (
   <Layout meta={societyMeta(detail)}>
@@ -430,6 +446,7 @@ export const Society: FC<{ detail: SocietyDetail }> = ({ detail }) => (
       <MovingIn d={detail} />
       <ConfidenceStrip d={detail} />
       <Nearby d={detail} />
+      <ShareRow url={`${HOST}/societies/${detail.slug}`} text={detailShareText(detail)} />
       <ContributeCTA societyName={detail.name} />
     </main>
     <Footer figLabel="Fig. 02 — Society page" />
@@ -440,7 +457,7 @@ export const SocietySparse: FC<{ soc: SocietyRecord }> = ({ soc }) => (
   <Layout meta={societySparseMeta(soc)}>
     <Header />
     <Breadcrumb
-      items={[{ label: "All societies", href: "/" }, { label: soc.locality, href: "#" }, { label: soc.name }]}
+      items={[{ label: "All societies", href: "/societies" }, { label: soc.locality, href: "#" }, { label: soc.name }]}
     />
     <main>
       <section class="px-5 sm:px-8 py-16 sm:py-24 border-b border-hairline">
@@ -480,6 +497,11 @@ export const SocietySparse: FC<{ soc: SocietyRecord }> = ({ soc }) => (
           </div>
         </div>
       </section>
+      <ShareRow
+        url={`${HOST}/societies/${soc.slug}`}
+        text={sparseShareText(soc)}
+        label="/ Help spread the word"
+      />
       <ContributeCTA societyName={soc.name} />
     </main>
     <Footer figLabel="Fig. 02 — Society page · sparse" />
