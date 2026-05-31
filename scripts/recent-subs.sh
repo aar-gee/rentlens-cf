@@ -76,6 +76,7 @@ SQL_ROWS="SELECT s.id, s.created_at, s.society_name, s.society_slug, s.locality,
   s.pending_society_id, s.pending_area_id,
   s.help_contact, s.willing_to_help, s.verify_state,
   s.spam_flag, s.ip_address, s.status, substr(s.note, 1, 240) AS note_head,
+  CASE WHEN s.proof_upload_key != '' THEN 1 ELSE 0 END AS has_proof,
   CASE WHEN s.society_slug IS NOT NULL
         AND soc.locality IS NOT NULL
         AND TRIM(soc.locality) != ''
@@ -105,7 +106,8 @@ SQL_SUMMARY="SELECT
                 AND soc.locality IS NOT NULL
                 AND TRIM(soc.locality) != ''
                 AND LOWER(TRIM(s.locality)) != LOWER(TRIM(soc.locality))
-            THEN 1 ELSE 0 END) AS area_mismatch
+            THEN 1 ELSE 0 END) AS area_mismatch,
+  SUM(CASE WHEN s.proof_upload_key != '' THEN 1 ELSE 0 END) AS proofs
 FROM submissions s LEFT JOIN societies soc ON soc.slug = s.society_slug
 WHERE ${WHERE//created_at/s.created_at}"
 
@@ -137,9 +139,10 @@ else:
         sp = 'SPAM' if r['spam_flag'] else '----'
         vr = 'VRFD' if r['verify_state'] == 'verified' else '----'
         mm = 'AMM' if r.get('area_mismatch') else '---'
+        pf = 'PRF' if r.get('has_proof') else '---'
         st = (r['status'] or '?')[:8]
         em = r['help_contact'] or '(no email)'
         if len(em) > 28: em = em[:25] + '...'
         ip = (r['ip_address'] or '')[:20]
-        print(f'  {ts}  {r[\"id\"]:9s}  {sp}  {vr}  {mm}  {st:9s}  {bhk}BHK  ₹{rent:>6}  {soc:32s}  {loc:18s}  {em:28s}  {ip}')
+        print(f'  {ts}  {r[\"id\"]:9s}  {sp}  {vr}  {mm}  {pf}  {st:9s}  {bhk}BHK  ₹{rent:>6}  {soc:32s}  {loc:18s}  {em:28s}  {ip}')
 "

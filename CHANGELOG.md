@@ -8,6 +8,28 @@ All notable changes to RentLens are documented here. Format follows
 
 ### Added
 
+- Optional rental-agreement proof upload (RENT-tscofnqc /
+  RENT-ngelwosv). New R2 bucket `rentlens-proofs` (staging:
+  `rentlens-proofs-staging`) bound as `env.PROOFS`. Migration 0010
+  adds `proof_upload_key` + `proof_upload_token` to submissions.
+  `/proof/<token>` page accepts a single file (JPG / PNG / WebP /
+  HEIC / PDF, 500 KB max); client-side image downscale via canvas
+  keeps phone photos under the cap. Ack/proof-prompt email
+  (levels.fyi-style copy: thanks, here's what we got, optional
+  proof link) sent automatically when the contributor gave us an
+  email + isn't spam-flagged + didn't upload inline. Success page
+  also shows "Add a rental agreement →" link. Admin: `hasProof`
+  badge per row + `Proofs` stat-bar count + JSON summary field +
+  `PRF` column in `scripts/recent-subs.sh`. Admin proof viewer at
+  `<prefix>/proof/<sub_id>` streams the R2 object behind basic-auth.
+
+  Cost-control: spam-flagged submissions get no token (no upload
+  surface, no R2 writes from them). Pre-`parseBody` Content-Length
+  check rejects > 600 KB requests at 413. Per-IP daily cap of 5
+  successful uploads. Turnstile gate on the upload POST. Single-use
+  via hasProof check (token stays for friendly re-render on refresh
+  but second POST short-circuits before R2). R2 lifecycle: prod
+  auto-purges objects > 90 days, staging > 30 days.
 - Area-mismatch flag (RENT-plvqhfmz). Surfaces in admin /submissions
   (red "area mismatch" badge per row + an "Area MM" count in the stats
   bar), in the JSON API (`row.areaMismatch` + `summary.area_mismatch`),

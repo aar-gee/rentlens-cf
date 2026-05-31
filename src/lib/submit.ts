@@ -6,6 +6,7 @@ import { isCanonicalArea } from "../data/area";
 import { isCanonicalMover } from "../data/mover";
 import { findOrCreatePendingArea, findOrCreatePendingSociety } from "../data/pending";
 import { isProbableSpam } from "./spam";
+import { generateProofToken } from "./proof";
 
 export type Step1Data = {
   societyName: string;
@@ -254,5 +255,19 @@ export async function persistSubmission(db: D1Database, sub: Submission): Promis
   // of the count for the next attempt. Empty signals skip their own rule
   // (anonymous helpContact + local dev with no CF-Connecting-IP both no-op).
   sub.spamFlag = await isProbableSpam(db, sub.helpContact, sub.ipAddress);
+  // Proof-upload token (RENT-tscofnqc / RENT-ngelwosv). Issued when the
+  // contributor gave us an email AND wasn't flagged as spam AND didn't
+  // upload inline — the ack/proof-prompt mail carries a /proof/<token>
+  // link they can use later. Cleared by markProofUploaded() on success.
+  // Cost-control: spam-flagged contributors get no token (no upload
+  // affordance, no R2 writes from them).
+  if (
+    sub.helpContact !== "" &&
+    sub.proofUploadKey === "" &&
+    sub.proofUploadToken === "" &&
+    !sub.spamFlag
+  ) {
+    sub.proofUploadToken = generateProofToken();
+  }
   return insertSubmission(db, sub);
 }

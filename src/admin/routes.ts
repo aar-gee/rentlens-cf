@@ -36,6 +36,7 @@ type AdminBindings = {
   DB: D1Database;
   ADMIN_USER?: string;
   ADMIN_PASS?: string;
+  PROOFS?: R2Bucket;
 };
 
 // strict:false so the dashboard matches both the mount root with and without a
@@ -193,6 +194,7 @@ adminApp.get("/api/submissions", async (c) => {
   let newSociety = 0;
   let newArea = 0;
   let areaMismatch = 0;
+  let proofs = 0;
   for (const r of rows) {
     byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
     bySpam[r.spamFlag ? "1" : "0"]++;
@@ -200,6 +202,7 @@ adminApp.get("/api/submissions", async (c) => {
     if (r.pendingSocietyId !== "") newSociety++;
     if (r.pendingAreaId !== "") newArea++;
     if (r.areaMismatch) areaMismatch++;
+    if (r.hasProof) proofs++;
   }
   return c.json({
     since: f.sinceISO,
@@ -212,9 +215,29 @@ adminApp.get("/api/submissions", async (c) => {
       new_society: newSociety,
       new_area: newArea,
       area_mismatch: areaMismatch,
+      proofs,
     },
     rows,
   });
+});
+
+// Admin proof viewer — proxies the R2 object so admins (basic-auth gated)
+// can review the uploaded doc. Streams the original bytes with the stored
+// content-type. 404 when no proof on file; 503 when R2 isn't bound.
+adminApp.get("/proof/:id", async (c) => {
+  const id = c.req.param("id");
+  if (!c.env.PROOFS) return c.text("PROOFS not bound", 503);
+  const r = await c.env.DB.prepare(`SELECT proof_upload_key FROM submissions WHERE id = ?`).bind(id).first<{
+    proof_upload_key: string;
+  }>();
+  if (!r || !r.proof_upload_key) return c.text("not found", 404);
+  const obj = await c.env.PROOFS.get(r.proof_upload_key);
+  if (!obj) return c.text("not found in R2", 404);
+  const h = new Headers();
+  obj.writeHttpMetadata(h);
+  h.set("Cache-Control", "private, no-store");
+  h.set("Content-Disposition", `inline; filename="proof-${id}"`);
+  return new Response(obj.body, { headers: h });
 });
 
 // ---- Pending-society actions ----

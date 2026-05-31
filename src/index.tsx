@@ -36,6 +36,10 @@ import {
 } from "./lib/submit";
 import { getClientIp } from "./lib/spam";
 import { sendEmail, type EmailEnv } from "./lib/email";
+import { writeProof, readProof, type ProofEnv } from "./lib/proof";
+import { ackEmail as renderAckEmail } from "./views/email/ack-email";
+import { ProofPage, type ProofPageState } from "./views/pages/proof";
+import { getSubmissionByProofToken, markProofUploaded } from "./data/submission";
 import {
   createVerification,
   consumeByToken,
@@ -71,6 +75,10 @@ export type Bindings = {
   // Turnstile no-op gate so local/staging-pre-secret still works).
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
+  // R2 bucket for optional rental-agreement proof uploads (RENT-tscofnqc /
+  // RENT-ngelwosv). All proof code paths no-op when PROOFS is unbound so
+  // local dev / pre-R2 staging keep working.
+  PROOFS?: R2Bucket;
 };
 
 // Fire-and-forget: queue verification email creation + send for a submission
@@ -114,6 +122,36 @@ async function respondAfterPersist(
   // priority (auto-dispositioned, lower attention); clean at default. No-op
   // when NTFY_TOPIC is unset (dev / pre-secret staging).
   c.executionCtx.waitUntil(notifySubmission(c.env, sub));
+
+  // Ack + soft proof-prompt email (RENT-ngelwosv). Sent only when the
+  // contributor gave us an email AND wasn't spam-flagged AND didn't attach
+  // a proof inline AND was issued a token. Tone is friendly + non-pushy per
+  // the user's pick (modelled on the levels.fyi mail). The verify email
+  // continues to fire independently when needed.
+  //
+  // Cost-control: skipping spam-flagged saves Resend cost and doesn't tip
+  // the attacker that they were flagged. persistSubmission already withholds
+  // the token from spam_flag=1 rows, so the conditions below double-cover.
+  if (
+    sub.helpContact !== "" &&
+    sub.proofUploadKey === "" &&
+    sub.proofUploadToken !== "" &&
+    !sub.spamFlag
+  ) {
+    const origin = new URL(c.req.url).origin;
+    const proofUploadURL = `${origin}/proof/${sub.proofUploadToken}`;
+    const tpl = renderAckEmail({
+      societyName: sub.societyName,
+      locality: sub.locality,
+      bhk: sub.bhk,
+      monthlyRent: sub.monthlyRent,
+      monthlyMaint: sub.monthlyMaint,
+      proofUploadURL,
+    });
+    c.executionCtx.waitUntil(
+      sendEmail(c.env, { to: sub.helpContact, subject: tpl.subject, html: tpl.html, text: tpl.text }),
+    );
+  }
 
   // Branch 1: cookie attach. Three outcomes from attachPreToSubmission:
   //   attached_verified → submission flipped to verified; clear cookie; success.
@@ -743,6 +781,195 @@ function renderConsumeResult(
       return c.html(<Verify state={{ kind: "not_found" }} />);
   }
 }
+
+// ---- Proof upload (RENT-tscofnqc / RENT-ngelwosv) ----
+//
+// /proof/<token> serves a single-page upload form. Token is the per-
+// submission single-use token issued at insert time (when helpContact was
+// given but no inline upload). The ack/proof-prompt mail carries the URL;
+// the success page also links to it as an "Add proof →" affordance.
+//
+// State machine:
+//   - token unknown                       → not_found
+//   - submission already has proof_upload → already_done
+//   - otherwise                           → ask (form)
+app.get("/proof/:token", async (c) => {
+  const token = c.req.param("token");
+  const sub = await getSubmissionByProofToken(c.env.DB, token);
+  if (!sub) return c.html(<ProofPage state={{ kind: "not_found" }} siteKey={c.env.TURNSTILE_SITE_KEY} />);
+  if (sub.hasProof) {
+    return c.html(
+      <ProofPage
+        state={{ kind: "already_done", societyName: sub.societyName, societySlug: sub.societySlug }}
+        siteKey={c.env.TURNSTILE_SITE_KEY}
+      />,
+    );
+  }
+  return c.html(
+    <ProofPage state={{ kind: "ask", token, societyName: sub.societyName }} siteKey={c.env.TURNSTILE_SITE_KEY} />,
+  );
+});
+
+// PROOF_MAX_REQUEST_BYTES — Content-Length cap including multipart overhead.
+// 500 KB file + ~1 KB form boundary/headers. Reject anything above before
+// parseBody() runs to spare CPU + bandwidth + R2 writes from malicious
+// requests that ignore the client-side limit.
+const PROOF_MAX_REQUEST_BYTES = 600 * 1024;
+// PROOF_MAX_PER_IP_PER_DAY — successful uploads from the same client IP in
+// the last 24h. Tuned to absorb a typo-retry pattern (1-2 uploads) but reject
+// a sustained burst from one source.
+const PROOF_MAX_PER_IP_PER_DAY = 5;
+
+app.post("/proof/:token", async (c) => {
+  const token = c.req.param("token");
+  const sub = await getSubmissionByProofToken(c.env.DB, token);
+  if (!sub) return c.html(<ProofPage state={{ kind: "not_found" }} siteKey={c.env.TURNSTILE_SITE_KEY} />);
+  if (sub.hasProof) {
+    return c.html(
+      <ProofPage
+        state={{ kind: "already_done", societyName: sub.societyName, societySlug: sub.societySlug }}
+        siteKey={c.env.TURNSTILE_SITE_KEY}
+      />,
+    );
+  }
+  // Cheap pre-checks before reading the body — bail before parseBody pays
+  // CPU/bandwidth on hostile requests.
+  const clHeader = c.req.header("Content-Length");
+  const cl = clHeader ? parseInt(clHeader, 10) : NaN;
+  if (Number.isFinite(cl) && cl > PROOF_MAX_REQUEST_BYTES) {
+    c.status(413);
+    return c.html(
+      <ProofPage
+        state={{
+          kind: "ask",
+          token,
+          societyName: sub.societyName,
+          error: `That request is ${Math.round(cl / 1024)} KB — proof uploads are capped at 500 KB.`,
+        }}
+        siteKey={c.env.TURNSTILE_SITE_KEY}
+      />,
+    );
+  }
+  // Per-IP daily cap. Counts successful uploads (proof_upload_key != '')
+  // from this IP in the last 24h. Cheap covering index on (ip_address,
+  // created_at) — added in migration 0009.
+  const clientIp = getClientIp((n) => c.req.header(n));
+  if (clientIp !== "") {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000)
+      .toISOString()
+      .replace("T", " ")
+      .slice(0, 19);
+    const row = await c.env.DB.prepare(
+      `SELECT count(*) AS n FROM submissions WHERE ip_address = ? AND proof_upload_key != '' AND created_at > ?`,
+    )
+      .bind(clientIp, cutoff)
+      .first<{ n: number }>();
+    if ((row?.n ?? 0) >= PROOF_MAX_PER_IP_PER_DAY) {
+      c.status(429);
+      return c.html(
+        <ProofPage
+          state={{
+            kind: "ask",
+            token,
+            societyName: sub.societyName,
+            error: "Too many uploads from this network today. Please try again tomorrow.",
+          }}
+          siteKey={c.env.TURNSTILE_SITE_KEY}
+        />,
+      );
+    }
+  }
+  const body = await c.req.parseBody();
+  // Turnstile gate — same widget the rest of the form flow uses. No-op
+  // when TURNSTILE_SECRET is unset (local dev / pre-secret staging).
+  const tsOk = await verifyTurnstile(
+    c.env.TURNSTILE_SECRET,
+    String(body["cf-turnstile-response"] ?? ""),
+    c.req.header("CF-Connecting-IP"),
+  );
+  if (!tsOk) {
+    c.status(422);
+    return c.html(
+      <ProofPage
+        state={{ kind: "ask", token, societyName: sub.societyName, error: TURNSTILE_ERROR }}
+        siteKey={c.env.TURNSTILE_SITE_KEY}
+      />,
+    );
+  }
+  const file = body["file"];
+  if (!file || typeof file === "string") {
+    c.status(422);
+    return c.html(
+      <ProofPage
+        state={{ kind: "ask", token, societyName: sub.societyName, error: "Please pick a file first." }}
+        siteKey={c.env.TURNSTILE_SITE_KEY}
+      />,
+    );
+  }
+  const result = await writeProof(c.env, sub.id, file);
+  if (result.kind === "no_binding") {
+    // R2 not wired yet — pretend the upload landed so the contributor isn't
+    // confused, but flag it server-side. Production should always have the
+    // binding; this branch protects local dev.
+    console.log(`[proof:no_binding] submission=${sub.id} — R2 not bound, skipping write`);
+    c.status(503);
+    return c.html(
+      <ProofPage
+        state={{
+          kind: "ask",
+          token,
+          societyName: sub.societyName,
+          error: "Uploads aren't wired up yet on this server. Please try again later.",
+        }}
+        siteKey={c.env.TURNSTILE_SITE_KEY}
+      />,
+    );
+  }
+  if (result.kind === "empty") {
+    c.status(422);
+    return c.html(
+      <ProofPage
+        state={{ kind: "ask", token, societyName: sub.societyName, error: "The file looks empty." }}
+        siteKey={c.env.TURNSTILE_SITE_KEY}
+      />,
+    );
+  }
+  if (result.kind === "too_large") {
+    c.status(413);
+    return c.html(
+      <ProofPage
+        state={{
+          kind: "ask",
+          token,
+          societyName: sub.societyName,
+          error: `That file is ${Math.round(result.size / 1024)} KB — please compress to under 500 KB and try again.`,
+        }}
+        siteKey={c.env.TURNSTILE_SITE_KEY}
+      />,
+    );
+  }
+  if (result.kind === "wrong_type") {
+    c.status(415);
+    return c.html(
+      <ProofPage
+        state={{
+          kind: "ask",
+          token,
+          societyName: sub.societyName,
+          error: `That file type (${result.type}) isn't accepted. Please use JPG, PNG, WebP, HEIC, or PDF.`,
+        }}
+        siteKey={c.env.TURNSTILE_SITE_KEY}
+      />,
+    );
+  }
+  await markProofUploaded(c.env.DB, sub.id, result.key);
+  return c.html(
+    <ProofPage
+      state={{ kind: "already_done", societyName: sub.societyName, societySlug: sub.societySlug }}
+      siteKey={c.env.TURNSTILE_SITE_KEY}
+    />,
+  );
+});
 
 // ---- Static content pages ----
 app.get("/how-it-works", (c) => c.html(<HowItWorks />));

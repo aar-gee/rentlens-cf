@@ -179,6 +179,112 @@ export const FORM_ERROR_CLEAR_SCRIPT = `
 })();
 `;
 
+// Client-side image downscale for the /proof upload form. Photos from
+// phones are often 3-8 MB; the server limit is 500 KB. Auto-resize via
+// canvas before upload so most uploads "just work" without the user
+// having to manually compress.
+//
+// Flow:
+//   1. On file change, if the file is a PDF: show its size; reject in-UI
+//      if > 500 KB (server still validates; this just avoids a roundtrip).
+//   2. If it's an image: downscale to fit within 1600x1600 (preserves
+//      typical lease-doc legibility), JPEG-encode at q=0.85, and replace
+//      the original file in the input via DataTransfer. Iteratively
+//      lower the quality if the result is still > 500 KB.
+//   3. Display the final size + a "ready" indicator before the user
+//      clicks Upload.
+//
+// Bails out to "submit as-is" if downscaling fails (very old browsers,
+// unsupported formats) — the server then rejects with a clean error.
+export const PROOF_UPLOAD_SCRIPT = `
+(function() {
+  var MAX_BYTES = 500 * 1024;
+  var TARGET_DIM = 1600;
+  function fmt(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1024*1024) return (n/1024).toFixed(0) + ' KB';
+    return (n/1024/1024).toFixed(2) + ' MB';
+  }
+  function status(msg, tone) {
+    var el = document.getElementById('proof-status');
+    if (!el) return;
+    el.removeAttribute('hidden');
+    el.textContent = msg;
+    el.className = 'text-xs leading-relaxed text-left ' + (tone === 'err' ? 'text-danger' : tone === 'ok' ? 'text-marigold-deep' : 'text-ink-faint');
+  }
+  function replaceFile(input, blob, name) {
+    try {
+      var dt = new DataTransfer();
+      var f = new File([blob], name, {type: blob.type, lastModified: Date.now()});
+      dt.items.add(f);
+      input.files = dt.files;
+      return true;
+    } catch (e) { return false; }
+  }
+  async function downscale(file) {
+    var img = new Image();
+    var url = URL.createObjectURL(file);
+    try {
+      await new Promise(function(res, rej) { img.onload = res; img.onerror = rej; img.src = url; });
+      var w = img.naturalWidth, h = img.naturalHeight;
+      var scale = Math.min(1, TARGET_DIM / Math.max(w, h));
+      var tw = Math.round(w * scale), th = Math.round(h * scale);
+      var canvas = document.createElement('canvas');
+      canvas.width = tw; canvas.height = th;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, tw, th);
+      var qualities = [0.85, 0.7, 0.55, 0.4];
+      for (var i = 0; i < qualities.length; i++) {
+        var blob = await new Promise(function(res) { canvas.toBlob(res, 'image/jpeg', qualities[i]); });
+        if (blob && blob.size <= MAX_BYTES) return blob;
+      }
+      // Last attempt — return whatever blob we have.
+      return await new Promise(function(res) { canvas.toBlob(res, 'image/jpeg', 0.35); });
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+  async function handleChange(e) {
+    var input = e.target;
+    if (!input || input.id !== 'proof-file' || !input.files || input.files.length === 0) return;
+    var file = input.files[0];
+    if (file.type === 'application/pdf') {
+      if (file.size > MAX_BYTES) {
+        status('PDF is ' + fmt(file.size) + ' — please compress to under ' + fmt(MAX_BYTES) + ' and try again.', 'err');
+      } else {
+        status('Ready: ' + fmt(file.size) + ' PDF.', 'ok');
+      }
+      return;
+    }
+    if (file.type.indexOf('image/') !== 0) {
+      status('Pick a JPG, PNG, WebP, HEIC, or PDF.', 'err');
+      return;
+    }
+    if (file.size <= MAX_BYTES) {
+      status('Ready: ' + fmt(file.size) + ' image.', 'ok');
+      return;
+    }
+    status('Shrinking ' + fmt(file.size) + ' photo…', 'info');
+    try {
+      var shrunk = await downscale(file);
+      if (!shrunk) {
+        status('Could not shrink the photo here. Server will check — if it bounces, please use a smaller image.', 'err');
+        return;
+      }
+      var ok = replaceFile(input, shrunk, (file.name || 'photo').replace(/\\.[^.]+$/, '') + '.jpg');
+      if (ok) {
+        status('Shrunk to ' + fmt(shrunk.size) + (shrunk.size > MAX_BYTES ? ' (still large; server may reject)' : ' — ready.'), shrunk.size > MAX_BYTES ? 'err' : 'ok');
+      } else {
+        status('Could not swap the file in your browser. Upload anyway and the server will check.', 'err');
+      }
+    } catch (e) {
+      status('Could not shrink the photo here. Server will check.', 'err');
+    }
+  }
+  document.addEventListener('change', handleChange);
+})();
+`;
+
 // Inline email-format validation on Step 1 — validate as the user types,
 // 500ms debounce, with a "too early to judge" gate so we don't flash an
 // error while they're mid-domain. Pairs with the existing server-side
