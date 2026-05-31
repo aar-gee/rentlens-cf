@@ -2,7 +2,7 @@
 // Port of admin/server.go route table + admin/handlers.go.
 import { Hono } from "hono";
 import { adminAuth } from "./auth";
-import { Dashboard, PendingSocietiesQueue, PendingAreasQueue, MessagesQueue, ActionResult, BuildersPage } from "../views/admin/ui";
+import { Dashboard, PendingSocietiesQueue, PendingAreasQueue, MessagesQueue, ActionResult, BuildersPage, SubmissionsQueue } from "../views/admin/ui";
 import { countPublished, publishedSlugs } from "../data/society";
 import { listBuilders, createBuilder } from "../data/builders";
 import { CANONICAL_AREAS } from "../data/area";
@@ -17,6 +17,8 @@ import {
   countSubmissions,
   countPendingSubmissions,
   listSubmissionsForModeration,
+  listRecentSubmissions,
+  parseSinceParam,
 } from "../data/submission";
 import { listContacts, countOpenContacts, resolveContact, reopenContact } from "../data/contact";
 import {
@@ -141,6 +143,75 @@ adminApp.get("/pending-areas", async (c) => {
 adminApp.get("/messages", async (c) => {
   const messages = await listContacts(c.env.DB);
   return c.html(MessagesQueue(messages));
+});
+
+// ---- Submissions browse + JSON API ----
+//
+// Both routes share the same query params: since (relative shortcut like
+// "24h" / "7d" or a SQLite-shaped ISO datetime), status, spam ("0" / "1").
+// HTML is for human triage; JSON is the AI-friendly path that ships full
+// rows + a `summary` object so a calling agent doesn't have to recompute
+// distributions.
+function parseListFilters(
+  c: import("hono").Context<{ Bindings: AdminBindings; Variables: { adminUser: string } }>,
+) {
+  const sinceParam = c.req.query("since") ?? "24h";
+  const statusParam = (c.req.query("status") ?? "").trim();
+  const spamParam = (c.req.query("spam") ?? "").trim();
+  return {
+    sinceParam,
+    sinceISO: parseSinceParam(sinceParam),
+    status: ["pending", "published", "rejected"].includes(statusParam) ? statusParam : "",
+    spamFlag: spamParam === "0" ? 0 : spamParam === "1" ? 1 : undefined,
+    spamRaw: spamParam,
+  };
+}
+
+adminApp.get("/submissions", async (c) => {
+  const f = parseListFilters(c);
+  const rows = await listRecentSubmissions(c.env.DB, {
+    sinceISO: f.sinceISO,
+    status: f.status || undefined,
+    spamFlag: f.spamFlag as 0 | 1 | undefined,
+    limit: 200,
+  });
+  return c.html(SubmissionsQueue(rows, { since: f.sinceParam, status: f.status, spam: f.spamRaw }));
+});
+
+adminApp.get("/api/submissions", async (c) => {
+  const f = parseListFilters(c);
+  const rows = await listRecentSubmissions(c.env.DB, {
+    sinceISO: f.sinceISO,
+    status: f.status || undefined,
+    spamFlag: f.spamFlag as 0 | 1 | undefined,
+    limit: 500,
+  });
+  // Compute distributions inline so callers (humans + AIs) don't refold.
+  const byStatus: Record<string, number> = {};
+  const bySpam: Record<string, number> = { "0": 0, "1": 0 };
+  const byVerify: Record<string, number> = { unverified: 0, verified: 0 };
+  let newSociety = 0;
+  let newArea = 0;
+  for (const r of rows) {
+    byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
+    bySpam[r.spamFlag ? "1" : "0"]++;
+    byVerify[r.verifyState]++;
+    if (r.pendingSocietyId !== "") newSociety++;
+    if (r.pendingAreaId !== "") newArea++;
+  }
+  return c.json({
+    since: f.sinceISO,
+    filters: { status: f.status, spam: f.spamRaw },
+    count: rows.length,
+    summary: {
+      by_status: byStatus,
+      by_spam: bySpam,
+      by_verify: byVerify,
+      new_society: newSociety,
+      new_area: newArea,
+    },
+    rows,
+  });
 });
 
 // ---- Pending-society actions ----

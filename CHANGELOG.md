@@ -8,6 +8,20 @@ All notable changes to RentLens are documented here. Format follows
 
 ### Added
 
+- Submission visibility surfaces (user request 2026-05-31). Three new
+  things: (1) ntfy push on every fresh submission via `notifySubmission()`
+  — fire-and-forget through the existing NTFY_TOPIC; spam-flagged rows
+  push at "low" priority so they don't crowd attention; (2) admin HTML
+  browse at `<prefix>/submissions` with `?since=` (relative like `24h`
+  / `7d` or an absolute SQLite-shaped datetime), `?status=`, `?spam=`
+  filters; the page shows a stats bar + a compact one-row-per-submission
+  table with verify/spam/pending-link badges; (3) AI / dev triage
+  surfaces — admin JSON API at `<prefix>/api/submissions` (same filters)
+  returning `{since, filters, count, summary{by_status,by_spam,by_verify,
+  new_society,new_area}, rows[]}`, plus `scripts/recent-subs.sh` that
+  wraps `wrangler d1 execute` so neither HTTP creds nor the admin URL
+  prefix are needed (only the wrangler / CF API token already on the
+  machine).
 - Silent per-email + per-IP spam control (RENT-okskjmao). New `spam_flag`
   and `ip_address` columns on `submissions`. `spam_flag` flips to 1 when
   EITHER (a) the contributor's `help_contact` has already posted ≥ 5

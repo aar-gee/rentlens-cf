@@ -17,7 +17,7 @@ import { searchAreas } from "./data/area";
 import { searchMovers } from "./data/mover";
 import { insertContact } from "./data/contact";
 import { emptyContact, parseContact, validateContact } from "./lib/contact";
-import { notifyContact } from "./lib/notify";
+import { notifyContact, notifySubmission } from "./lib/notify";
 import { verifyTurnstile, TURNSTILE_ERROR } from "./lib/turnstile";
 import { ADMIN_PREFIX } from "./admin/auth";
 import { adminApp } from "./admin/routes";
@@ -109,6 +109,12 @@ async function respondAfterPersist(
   c: import("hono").Context<{ Bindings: Bindings }>,
   sub: import("./data/submission").Submission,
 ): Promise<Response> {
+  // ntfy push on every submission — fire-and-forget so the HTTP response
+  // returns before the ntfy POST round-trips. Spam-flagged pushes at low
+  // priority (auto-dispositioned, lower attention); clean at default. No-op
+  // when NTFY_TOPIC is unset (dev / pre-secret staging).
+  c.executionCtx.waitUntil(notifySubmission(c.env, sub));
+
   // Branch 1: cookie attach. Three outcomes from attachPreToSubmission:
   //   attached_verified → submission flipped to verified; clear cookie; success.
   //   attached_pending  → pre is linked but unconsumed; SAME inbox email will

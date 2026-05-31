@@ -5,6 +5,7 @@ import type { PendingSociety, PendingArea } from "../../data/pending";
 import type { AdminAction } from "../../data/moderation";
 import type { ContactSubmission } from "../../data/contact";
 import type { Builder } from "../../data/builders";
+import type { SubmissionListRow } from "../../data/submission";
 
 // queueCounts — the dashboard numbers in one place.
 export type QueueCounts = {
@@ -71,6 +72,7 @@ const AdminBody: FC<PropsWithChildren<{ active: string }>> = ({ active, children
             <NavLink path="/" label="Dashboard" active={active === "dashboard"} />
             <NavLink path="/pending-societies" label="Societies" active={active === "societies"} />
             <NavLink path="/pending-areas" label="Areas" active={active === "areas"} />
+            <NavLink path="/submissions" label="Submissions" active={active === "submissions"} />
             <NavLink path="/messages" label="Messages" active={active === "messages"} />
             <NavLink path="/builders" label="Builders" active={active === "builders"} />
           </nav>
@@ -543,6 +545,234 @@ export const MessagesQueue = (messages: ContactSubmission[]) => (
           <div class="bg-white border border-hairline overflow-hidden">
             {messages.map((m, i) => (
               <MessageRow m={m} last={i === messages.length - 1} />
+            ))}
+          </div>
+        )}
+      </div>
+    </main>
+  </AdminBase>
+);
+
+// ---- Submissions browse (time-windowed) ----
+
+// formatINR — mirror of the lib/notify.ts helper, scoped to view here so
+// the admin row count of rent values reads naturally. Plain `₹` prefix +
+// Indian grouping.
+function formatINRView(n: number): string {
+  if (n <= 0) return "₹0";
+  const s = String(n);
+  const lastThree = s.slice(-3);
+  const head = s.slice(0, -3);
+  if (head === "") return "₹" + lastThree;
+  return "₹" + head.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + lastThree;
+}
+
+// maskEmail — mirror of the verify-page helper (kept private to admin view
+// so admin sees masked + can hover to confirm dedup signal without raw PII
+// in the page DOM).
+function maskEmailView(e: string): string {
+  if (e === "") return "";
+  const at = e.indexOf("@");
+  if (at < 1) return "***";
+  const local = e.slice(0, at);
+  const domain = e.slice(at);
+  if (local.length <= 2) return `${local[0]}***${domain}`;
+  return `${local[0]}${"*".repeat(Math.min(3, local.length - 2))}${local[local.length - 1]}${domain}`;
+}
+
+const SinceQuickPicks: FC<{ current: string }> = ({ current }) => {
+  const picks: { value: string; label: string }[] = [
+    { value: "1h", label: "1h" },
+    { value: "6h", label: "6h" },
+    { value: "24h", label: "24h" },
+    { value: "7d", label: "7d" },
+    { value: "30d", label: "30d" },
+  ];
+  return (
+    <div class="flex items-center gap-2">
+      <span class="num text-[10px] tracking-[0.14em] uppercase text-ink-faint">Since</span>
+      {picks.map((p) => (
+        <a
+          href={adminHref(`/submissions?since=${p.value}`)}
+          class={
+            "px-2.5 py-1 text-xs num border " +
+            (p.value === current
+              ? "bg-ink text-parchment border-ink"
+              : "bg-white text-ink-mute border-hairline hover:border-ink")
+          }
+        >
+          {p.label}
+        </a>
+      ))}
+    </div>
+  );
+};
+
+const StatusFilter: FC<{ current: string }> = ({ current }) => {
+  const picks: { value: string; label: string }[] = [
+    { value: "", label: "All" },
+    { value: "pending", label: "Pending" },
+    { value: "published", label: "Published" },
+    { value: "rejected", label: "Rejected" },
+  ];
+  return (
+    <div class="flex items-center gap-2">
+      <span class="num text-[10px] tracking-[0.14em] uppercase text-ink-faint">Status</span>
+      {picks.map((p) => (
+        <a
+          href={adminHref(`/submissions?status=${p.value}`)}
+          class={
+            "px-2.5 py-1 text-xs num border " +
+            (p.value === current
+              ? "bg-ink text-parchment border-ink"
+              : "bg-white text-ink-mute border-hairline hover:border-ink")
+          }
+        >
+          {p.label}
+        </a>
+      ))}
+    </div>
+  );
+};
+
+const SpamFilter: FC<{ current: string }> = ({ current }) => {
+  const picks: { value: string; label: string }[] = [
+    { value: "", label: "All" },
+    { value: "0", label: "Clean" },
+    { value: "1", label: "Flagged" },
+  ];
+  return (
+    <div class="flex items-center gap-2">
+      <span class="num text-[10px] tracking-[0.14em] uppercase text-ink-faint">Spam</span>
+      {picks.map((p) => (
+        <a
+          href={adminHref(`/submissions?spam=${p.value}`)}
+          class={
+            "px-2.5 py-1 text-xs num border " +
+            (p.value === current
+              ? "bg-ink text-parchment border-ink"
+              : "bg-white text-ink-mute border-hairline hover:border-ink")
+          }
+        >
+          {p.label}
+        </a>
+      ))}
+    </div>
+  );
+};
+
+const Badge: FC<PropsWithChildren<{ tone: "ink" | "mute" | "danger" | "marigold" | "success" }>> = ({ tone, children }) => {
+  const cls =
+    tone === "ink"
+      ? "bg-ink text-parchment"
+      : tone === "danger"
+      ? "bg-danger/15 text-danger"
+      : tone === "marigold"
+      ? "bg-marigold/15 text-marigold-deep"
+      : tone === "success"
+      ? "bg-success/15 text-success"
+      : "bg-parchment-deep/60 text-ink-mute";
+  return <span class={`num text-[10px] tracking-[0.14em] uppercase px-1.5 py-0.5 ${cls}`}>{children as any}</span>;
+};
+
+const SubmissionRow: FC<{ r: SubmissionListRow; last: boolean }> = ({ r, last }) => (
+  <div class={"px-5 py-4 grid grid-cols-[150px_1fr_140px] gap-4 items-start" + (last ? "" : " border-b border-hairline")}>
+    <div class="text-xs text-ink-mute num">
+      <div>{fmtDate(r.createdAt)}</div>
+      <div class="text-ink-faint mt-1">{r.id}</div>
+    </div>
+    <div class="min-w-0">
+      <div class="text-sm text-ink leading-tight flex items-center gap-2 flex-wrap">
+        <span class="font-medium truncate">{r.societyName || "—"}</span>
+        {r.locality ? <span class="text-ink-faint">· {r.locality}</span> : null}
+        {r.pendingSocietyId !== "" ? <Badge tone="marigold">new society</Badge> : null}
+        {r.pendingAreaId !== "" ? <Badge tone="marigold">new area</Badge> : null}
+      </div>
+      <div class="text-xs text-ink-mute mt-1 num">
+        {r.bhk}BHK · {formatINRView(r.monthlyRent)} rent · {formatINRView(r.monthlyMaint)} maint · {r.floorBand || "—"} · {r.furnishing || "—"}
+      </div>
+      {r.helpContact !== "" || r.note !== "" ? (
+        <div class="text-xs text-ink-mute mt-1.5 leading-relaxed">
+          {r.helpContact !== "" ? (
+            <span class="num" title={r.helpContact}>
+              {maskEmailView(r.helpContact)}
+              {r.willingToHelp ? " · willing to help" : ""}
+            </span>
+          ) : null}
+          {r.note !== "" ? (
+            <div class="text-ink-faint mt-1 truncate" title={r.note}>
+              "{r.note.slice(0, 140)}{r.note.length > 140 ? "…" : ""}"
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+    <div class="flex flex-col items-end gap-1.5">
+      {r.spamFlag ? <Badge tone="danger">spam</Badge> : null}
+      {r.verifyState === "verified" ? <Badge tone="success">verified</Badge> : null}
+      <Badge tone={r.status === "published" ? "success" : r.status === "rejected" ? "danger" : "mute"}>{r.status}</Badge>
+    </div>
+  </div>
+);
+
+const StatsBar: FC<{ rows: SubmissionListRow[] }> = ({ rows }) => {
+  const total = rows.length;
+  const verified = rows.filter((r) => r.verifyState === "verified").length;
+  const spam = rows.filter((r) => r.spamFlag).length;
+  const pending = rows.filter((r) => r.status === "pending").length;
+  const published = rows.filter((r) => r.status === "published").length;
+  const rejected = rows.filter((r) => r.status === "rejected").length;
+  const newSoc = rows.filter((r) => r.pendingSocietyId !== "").length;
+  const stats: { label: string; value: number }[] = [
+    { label: "Total", value: total },
+    { label: "Pending", value: pending },
+    { label: "Published", value: published },
+    { label: "Rejected", value: rejected },
+    { label: "Verified", value: verified },
+    { label: "Spam", value: spam },
+    { label: "New soc", value: newSoc },
+  ];
+  return (
+    <div class="bg-white border border-hairline px-5 py-4 mb-6 grid grid-cols-7 gap-4">
+      {stats.map((s) => (
+        <div>
+          <div class="num text-[10px] tracking-[0.14em] uppercase text-ink-faint">{s.label}</div>
+          <div class="num text-2xl tracking-tight text-ink mt-1">{s.value}</div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export const SubmissionsQueue = (
+  rows: SubmissionListRow[],
+  filters: { since: string; status: string; spam: string },
+) => (
+  <AdminBase title="Submissions" active="submissions">
+    <main class="px-5 sm:px-8 py-12 sm:py-16">
+      <div class="max-w-wide mx-auto">
+        <QueueHeader
+          title="Submissions"
+          blurb="Time-windowed browse of every rent report — pending, published, or rejected — with verify state, spam flag, and pending-link flags surfaced inline. Filters chain via URL: ?since= + ?status= + ?spam=."
+        />
+        <div class="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3">
+          <SinceQuickPicks current={filters.since} />
+          <StatusFilter current={filters.status} />
+          <SpamFilter current={filters.spam} />
+          <a
+            href={adminHref(`/api/submissions?since=${filters.since}${filters.status ? "&status=" + filters.status : ""}${filters.spam ? "&spam=" + filters.spam : ""}`)}
+            class="num text-[10px] tracking-[0.14em] uppercase text-ink-faint hover:text-ink underline ml-auto"
+          >
+            Raw JSON →
+          </a>
+        </div>
+        <StatsBar rows={rows} />
+        {rows.length === 0 ? (
+          <EmptyQueue headline="No submissions in this window" blurb="Widen the time range or clear filters." />
+        ) : (
+          <div class="bg-white border border-hairline overflow-hidden">
+            {rows.map((r, i) => (
+              <SubmissionRow r={r} last={i === rows.length - 1} />
             ))}
           </div>
         )}

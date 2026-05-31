@@ -149,6 +149,170 @@ export async function countPendingSubmissions(db: D1Database): Promise<number> {
   return r?.n ?? 0;
 }
 
+// SubmissionListRow — flat shape returned by listRecentSubmissions for the
+// admin /submissions view and the AI-friendly JSON endpoint. ISO timestamps,
+// no nullables (NULL slugs come back as "" so JSON downstream is stable).
+export type SubmissionListRow = {
+  id: string;
+  createdAt: string;
+  societyName: string;
+  societySlug: string;
+  pendingSocietyId: string;
+  locality: string;
+  pendingAreaId: string;
+  bhk: string;
+  monthlyRent: number;
+  monthlyMaint: number;
+  floorBand: string;
+  furnishing: string;
+  sqft: number | null;
+  deposit: number | null;
+  ratingValue: number | null;
+  ratingQuality: number | null;
+  ratingOwner: number | null;
+  note: string;
+  sourceChannel: string;
+  sourceDetail: string;
+  moverName: string;
+  moverRating: number | null;
+  willingToHelp: boolean;
+  helpContact: string;
+  verifyState: "unverified" | "verified";
+  verifiedAt: string | null;
+  spamFlag: boolean;
+  ipAddress: string;
+  status: string;
+};
+
+export type RecentSubmissionFilters = {
+  sinceISO: string; // 'YYYY-MM-DD HH:MM:SS' SQLite format
+  status?: string; // 'pending' | 'published' | 'rejected'
+  spamFlag?: 0 | 1;
+  limit?: number;
+};
+
+// listRecentSubmissions — time-windowed listing for admin / AI triage. Newest
+// first. Optional status + spam_flag filters. Hard limit (default 200) to
+// keep responses bounded even before pagination lands.
+export async function listRecentSubmissions(
+  db: D1Database,
+  filters: RecentSubmissionFilters,
+): Promise<SubmissionListRow[]> {
+  const conds: string[] = ["created_at >= ?"];
+  const binds: (string | number)[] = [filters.sinceISO];
+  if (filters.status) {
+    conds.push("status = ?");
+    binds.push(filters.status);
+  }
+  if (filters.spamFlag !== undefined) {
+    conds.push("spam_flag = ?");
+    binds.push(filters.spamFlag);
+  }
+  const limit = Math.min(Math.max(1, filters.limit ?? 200), 500);
+  binds.push(limit);
+  const sql = `
+    SELECT id, created_at, society_name, society_slug, pending_society_id,
+           locality, pending_area_id, bhk, monthly_rent, monthly_maint,
+           floor_band, furnishing, sqft, deposit, rating_value, rating_quality,
+           rating_owner, note, source_channel, source_detail, mover_name,
+           mover_rating, willing_to_help, help_contact, verify_state,
+           verified_at, spam_flag, ip_address, status
+    FROM submissions
+    WHERE ${conds.join(" AND ")}
+    ORDER BY created_at DESC
+    LIMIT ?
+  `;
+  const { results } = await db
+    .prepare(sql)
+    .bind(...binds)
+    .all<{
+      id: string;
+      created_at: string;
+      society_name: string;
+      society_slug: string | null;
+      pending_society_id: string | null;
+      locality: string;
+      pending_area_id: string | null;
+      bhk: string;
+      monthly_rent: number;
+      monthly_maint: number;
+      floor_band: string;
+      furnishing: string;
+      sqft: number | null;
+      deposit: number | null;
+      rating_value: number | null;
+      rating_quality: number | null;
+      rating_owner: number | null;
+      note: string;
+      source_channel: string;
+      source_detail: string;
+      mover_name: string;
+      mover_rating: number | null;
+      willing_to_help: number;
+      help_contact: string;
+      verify_state: string;
+      verified_at: string | null;
+      spam_flag: number;
+      ip_address: string;
+      status: string;
+    }>();
+  return results.map((r) => ({
+    id: r.id,
+    createdAt: r.created_at,
+    societyName: r.society_name,
+    societySlug: r.society_slug ?? "",
+    pendingSocietyId: r.pending_society_id ?? "",
+    locality: r.locality,
+    pendingAreaId: r.pending_area_id ?? "",
+    bhk: r.bhk,
+    monthlyRent: r.monthly_rent,
+    monthlyMaint: r.monthly_maint,
+    floorBand: r.floor_band,
+    furnishing: r.furnishing,
+    sqft: r.sqft,
+    deposit: r.deposit,
+    ratingValue: r.rating_value,
+    ratingQuality: r.rating_quality,
+    ratingOwner: r.rating_owner,
+    note: r.note,
+    sourceChannel: r.source_channel,
+    sourceDetail: r.source_detail,
+    moverName: r.mover_name,
+    moverRating: r.mover_rating,
+    willingToHelp: r.willing_to_help === 1,
+    helpContact: r.help_contact,
+    verifyState: r.verify_state === "verified" ? "verified" : "unverified",
+    verifiedAt: r.verified_at,
+    spamFlag: r.spam_flag === 1,
+    ipAddress: r.ip_address,
+    status: r.status,
+  }));
+}
+
+// parseSinceParam — accepts either a relative shortcut ("24h", "6h", "7d",
+// "30m") or an absolute ISO timestamp. Returns the SQLite-format cutoff.
+// Defaults to last 24h when input is empty / invalid.
+export function parseSinceParam(input: string): string {
+  const trimmed = input.trim();
+  if (trimmed !== "") {
+    // Relative: <number><h|d|m>
+    const m = /^(\d+)([hdm])$/i.exec(trimmed);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      const unit = m[2].toLowerCase();
+      const ms = unit === "h" ? n * 60 * 60 * 1000 : unit === "d" ? n * 24 * 60 * 60 * 1000 : n * 60 * 1000;
+      return new Date(Date.now() - ms).toISOString().replace("T", " ").slice(0, 19);
+    }
+    // ISO / SQLite-shaped passthrough — accept whatever-the-caller-gave when
+    // it looks like a datetime; let SQLite handle malformed inputs.
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      return trimmed.replace("T", " ").replace(/\.\d+Z?$/, "").slice(0, 19);
+    }
+  }
+  // Default: 24h.
+  return new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().replace("T", " ").slice(0, 19);
+}
+
 // listSubmissionsForModeration returns the minimal per-submission fields the
 // admin queues aggregate over (pending links + help-contact for distinct counts).
 export async function listSubmissionsForModeration(
