@@ -8,6 +8,20 @@ All notable changes to RentLens are documented here. Format follows
 
 ### Added
 
+- Honesty pipeline: real reports now flow into the catalog (RENT-tbhkjjfy).
+  (A) Society detail pages are D1-backed — the route overlays the live DB row's
+  headline numbers + provenance onto the curated bundle, so they reflect the
+  grounded asking rents (no more fixture/browse divergence). (B) Submissions are
+  publishable: admin Publish/Reject on the submissions queue; publishing
+  recomputes the society's per-BHK medians/ranges + report_count from published
+  non-spam reports and promotes provenance to `resident` once ≥3 reports exist
+  (`RESIDENT_THRESHOLD`), at which point the page switches to the real
+  "what residents pay" variant. Below threshold it stays an estimate.
+- Corrected two mis-seeded societies (RENT-dqfzfbeq). "Salarpuria Sattva Magnus"
+  (a Hyderabad project, not in Bengaluru) renamed to Sattva Magnificia +
+  relocated to Mahadevapura, old slug 301-redirected; "Prestige Sunrise Park"
+  relocated from Bellandur to its real Electronics City Phase 1 — both with
+  grounded asking rent.
 - Grounded asking-rent dataset wired into the catalog (RENT-dqfzfbeq).
   New `rent_observations` table (per-society/BHK asking low/median/high +
   maintenance + deposit + listing-count basis + confidence + sources),
