@@ -78,14 +78,45 @@ export const SocietyCardsFragment: FC<{ societies: Society[]; nextOffset: number
         id="load-more-trigger"
         hx-get={`/societies/page?offset=${nextOffset}`}
         hx-trigger="revealed"
-        hx-target="#societies-grid"
-        hx-swap="beforeend"
+        hx-target="this"
+        hx-swap="outerHTML"
         class="w-full flex justify-center py-6"
       >
         <span class="num text-xs text-ink-faint tracking-[0.12em] uppercase">Loading more...</span>
       </div>
     ) : null}
   </>
+);
+
+// BrowseSearch — spelling-tolerant search box on the directory page. Same
+// HTMX autocomplete as the homepage hero (GET /search -> SearchResults dropdown,
+// fuzzy-matched on name/alias/locality/builder), so people can jump straight to
+// a society from the browse page instead of scrolling the whole grid.
+const BrowseSearch: FC = () => (
+  <section class="px-5 sm:px-8 pb-6 sm:pb-8">
+    <div class="max-w-wide mx-auto">
+      <form class="relative max-w-[560px]" onsubmit="return false;">
+        <div class="search-shell bg-white border border-hairline flex items-center pl-4 pr-2 py-2 sm:py-2.5 gap-2 sm:gap-3">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" class="text-ink-faint flex-shrink-0">
+            <circle cx="9" cy="9" r="6.5" stroke="currentColor" stroke-width="1.5" />
+            <path d="M14 14l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" />
+          </svg>
+          <input
+            type="search"
+            name="q"
+            placeholder="Search a society or locality"
+            class="flex-1 min-w-0 bg-transparent outline-none text-sm sm:text-base placeholder:text-ink-faint"
+            hx-get="/search"
+            hx-trigger="keyup changed delay:300ms, search"
+            hx-target="#browse-search-results"
+            hx-swap="innerHTML"
+            autocomplete="off"
+          />
+        </div>
+        <div id="browse-search-results" class="absolute left-0 right-0 top-full mt-1 z-50 text-left" />
+      </form>
+    </div>
+  </section>
 );
 
 // Grid — the wrapping section for the /societies page. Renders the first page
@@ -119,6 +150,7 @@ export const SocietiesIndex: FC<{ societies: Society[]; hasMore: boolean; allFor
       <Header />
       <main>
         <IntroSection stats={stats} />
+        <BrowseSearch />
         <Grid societies={societies} hasMore={hasMore} />
         <ContributeCTA stats={stats} />
       </main>
