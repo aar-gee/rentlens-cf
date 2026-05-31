@@ -43,9 +43,12 @@ function societyJSONLD(d: SocietyDetail): string {
 }
 
 function societyMeta(d: SocietyDetail): Meta {
+  const isEst = (d.provenance ?? "seed") !== "resident";
   return {
     title: `${d.name} — RentLens`,
-    description: `Real rent, maintenance, and deposit data for ${d.name}, ${d.locality}. Reported by ${d.summaryTotal} residents.`,
+    description: isEst
+      ? `Our early estimate of rent, maintenance, and deposit for ${d.name}, ${d.locality}. Help make it real — add what you actually pay.`
+      : `Real rent, maintenance, and deposit data for ${d.name}, ${d.locality}. Reported by ${d.summaryTotal} residents.`,
     path: `/societies/${d.slug}`,
     ogType: "article",
     jsonLd: societyJSONLD(d),
@@ -86,35 +89,48 @@ function reportsCountLabel(rows: RentBreakdownRow[], bhk: string): string {
   return n === 1 ? "1 report" : `${n} reports`;
 }
 
+// isEstimate — true until a society has genuine resident-reported data. Every
+// curated society currently defaults to seed provenance, so they all render the
+// honest estimate variant (no fabricated reports / notes / ratings).
+const isEstimate = (d: SocietyDetail) => (d.provenance ?? "seed") !== "resident";
+
 const summaryStatsLine = (d: SocietyDetail) =>
-  `${d.summaryTotal} reports · ${d.selfCount} self · ${d.partialCount} partial · ${d.verifiedCount} verified`;
+  isEstimate(d)
+    ? "Our estimate · no resident reports yet"
+    : `${d.summaryTotal} reports · ${d.selfCount} self · ${d.partialCount} partial · ${d.verifiedCount} verified`;
 
 function summary2BHK(d: SocietyDetail): SummaryMetricProps {
+  const est = isEstimate(d);
   const p: SummaryMetricProps = {
-    eyebrow: "2 BHK · median",
+    eyebrow: est ? "2 BHK · estimate" : "2 BHK · median",
     big: d.medianRent2BHK != null ? formatINR(d.medianRent2BHK) : "—",
     bigSuffix: "/mo",
-    trend: d.trend2BHK,
-    confidenceDot: "marigold",
-    confidenceLabel: "Partially verified",
+    trend: est ? null : d.trend2BHK,
+    confidenceDot: est ? "ink-faint" : "marigold",
+    confidenceLabel: est ? "Our estimate" : "Partially verified",
   };
   if (d.range2BHKLow != null && d.range2BHKHigh != null) {
-    p.sub = `${formatINRRange(d.range2BHKLow, d.range2BHKHigh)} · ${reportsCountLabel(d.rentBreakdown, "2 BHK")}`;
+    p.sub = est
+      ? formatINRRange(d.range2BHKLow, d.range2BHKHigh)
+      : `${formatINRRange(d.range2BHKLow, d.range2BHKHigh)} · ${reportsCountLabel(d.rentBreakdown, "2 BHK")}`;
   }
   return p;
 }
 
 function summary3BHK(d: SocietyDetail): SummaryMetricProps {
+  const est = isEstimate(d);
   const p: SummaryMetricProps = {
-    eyebrow: "3 BHK · median",
+    eyebrow: est ? "3 BHK · estimate" : "3 BHK · median",
     big: d.medianRent3BHK != null ? formatINR(d.medianRent3BHK) : "—",
     bigSuffix: "/mo",
-    trend: d.trend3BHK,
-    confidenceDot: "success",
-    confidenceLabel: "Verified source",
+    trend: est ? null : d.trend3BHK,
+    confidenceDot: est ? "ink-faint" : "success",
+    confidenceLabel: est ? "Our estimate" : "Verified source",
   };
   if (d.range3BHKLow != null && d.range3BHKHigh != null) {
-    p.sub = `${formatINRRange(d.range3BHKLow, d.range3BHKHigh)} · ${reportsCountLabel(d.rentBreakdown, "3 BHK")}`;
+    p.sub = est
+      ? formatINRRange(d.range3BHKLow, d.range3BHKHigh)
+      : `${formatINRRange(d.range3BHKLow, d.range3BHKHigh)} · ${reportsCountLabel(d.rentBreakdown, "3 BHK")}`;
   }
   return p;
 }
@@ -124,9 +140,9 @@ const summaryMaintenance = (d: SocietyDetail): SummaryMetricProps => ({
   big: formatINR(d.maintenanceTypical),
   bigSuffix: "/mo",
   sub: `${formatINR(d.maintenanceLow)} – ${formatINR(d.maintenanceHigh)} range`,
-  trend: d.trendMaint,
-  confidenceDot: "marigold",
-  confidenceLabel: "Across all BHK",
+  trend: isEstimate(d) ? null : d.trendMaint,
+  confidenceDot: "ink-faint",
+  confidenceLabel: isEstimate(d) ? "Our estimate" : "Across all BHK",
 });
 
 const summaryDeposit = (d: SocietyDetail): SummaryMetricProps => ({
@@ -136,7 +152,7 @@ const summaryDeposit = (d: SocietyDetail): SummaryMetricProps => ({
   sub: d.depositSub,
   trend: null,
   confidenceDot: "ink-faint",
-  confidenceLabel: "Self-reported",
+  confidenceLabel: isEstimate(d) ? "Our estimate" : "Self-reported",
 });
 
 const Arrow: FC = () => (
@@ -216,8 +232,10 @@ const SummarySection: FC<{ d: SocietyDetail }> = ({ d }) => (
     <div class="max-w-wide mx-auto">
       <div class="flex items-end justify-between mb-7">
         <div>
-          <div class="eyebrow mb-2">/ At a glance · last 12 months</div>
-          <h2 class="display text-2xl sm:text-3xl font-medium tracking-tighter">What residents pay.</h2>
+          <div class="eyebrow mb-2">{isEstimate(d) ? "/ At a glance · our estimate" : "/ At a glance · last 12 months"}</div>
+          <h2 class="display text-2xl sm:text-3xl font-medium tracking-tighter">
+            {isEstimate(d) ? "What we estimate residents pay." : "What residents pay."}
+          </h2>
         </div>
         <span class="text-xs text-ink-faint num hidden sm:inline">{summaryStatsLine(d)}</span>
       </div>
@@ -414,6 +432,35 @@ const Nearby: FC<{ d: SocietyDetail }> = ({ d }) => (
   </section>
 );
 
+// EstimateNotice — shown on seed/estimate societies in place of the (currently
+// fabricated) resident notes + ratings sections. States plainly that the
+// numbers are our guess and turns the page into a call to contribute.
+const EstimateNotice: FC<{ d: SocietyDetail }> = ({ d }) => (
+  <section class="px-5 sm:px-8 py-12 sm:py-16 border-t border-hairline bg-parchment-deep/20">
+    <div class="max-w-narrow mx-auto">
+      <div class="bg-white border border-hairline p-7 sm:p-8">
+        <div class="eyebrow mb-3">/ Help make this real</div>
+        <h2 class="display text-xl sm:text-2xl font-medium tracking-tighter mb-3">
+          These are our estimate — no residents have reported {d.name} yet.
+        </h2>
+        <p class="text-sm text-ink-mute leading-relaxed max-w-[560px]">
+          We seeded a starting guess so the page isn't blank, but it's only that — a guess. If you live (or have lived)
+          at {d.name}, your 60-second report replaces our estimate with the real thing, and the next renter stops
+          guessing like you had to.
+        </p>
+        <a
+          href="#contribute"
+          class="mt-6 inline-flex items-center gap-2 bg-marigold hover:bg-marigold-deep transition-colors text-parchment px-5 py-3 text-sm font-medium tracking-tight"
+        >
+          Submit rent for {d.name}
+          <Arrow />
+        </a>
+      </div>
+      <WaitlistBox slug={d.slug} name={d.name} />
+    </div>
+  </section>
+);
+
 const breadcrumbItems = (d: SocietyDetail): BreadcrumbItem[] => [
   { label: "All societies", href: "/societies" },
   { label: d.locality, href: "#" },
@@ -423,6 +470,9 @@ const breadcrumbItems = (d: SocietyDetail): BreadcrumbItem[] => [
 // Share message for a society page. Leads with a concrete number when we have
 // one (most shareable), falls back to a clean generic otherwise.
 function detailShareText(d: SocietyDetail): string {
+  if (isEstimate(d)) {
+    return `Renting at ${d.name}, ${d.locality}? RentLens has an early estimate — help make it real by adding what you actually pay.`;
+  }
   const m = d.medianRent3BHK ?? d.medianRent2BHK;
   const bhk = d.medianRent3BHK ? "3 BHK" : "2 BHK";
   if (m != null) {
@@ -435,25 +485,37 @@ function sparseShareText(soc: SocietyRecord): string {
   return `Know the rent at ${soc.name}, ${soc.locality}? RentLens is collecting real resident-reported numbers — add yours in 60 seconds.`;
 }
 
-export const Society: FC<{ detail: SocietyDetail }> = ({ detail }) => (
-  <Layout meta={societyMeta(detail)}>
-    <Header />
-    <Breadcrumb items={breadcrumbItems(detail)} />
-    <main>
-      <HeroSection d={detail} />
-      <SummarySection d={detail} />
-      <FilterBar />
-      <MainInsights d={detail} />
-      <Qualitative d={detail} />
-      <MovingIn d={detail} />
-      <ConfidenceStrip d={detail} />
-      <Nearby d={detail} />
-      <ShareRow url={`${HOST}/societies/${detail.slug}`} text={detailShareText(detail)} />
-      <ContributeCTA societyName={detail.name} />
-    </main>
-    <Footer />
-  </Layout>
-);
+export const Society: FC<{ detail: SocietyDetail }> = ({ detail }) => {
+  const est = isEstimate(detail);
+  return (
+    <Layout meta={societyMeta(detail)}>
+      <Header />
+      <Breadcrumb items={breadcrumbItems(detail)} />
+      <main>
+        <HeroSection d={detail} />
+        <SummarySection d={detail} />
+        {est ? (
+          // Seed/estimate societies: honest "be the first" block instead of the
+          // fabricated breakdown / resident notes / ratings / nearby sections
+          // (the nearby comparison data carries seeded report counts too).
+          <EstimateNotice d={detail} />
+        ) : (
+          <>
+            <FilterBar />
+            <MainInsights d={detail} />
+            <Qualitative d={detail} />
+            <MovingIn d={detail} />
+            <ConfidenceStrip d={detail} />
+            <Nearby d={detail} />
+          </>
+        )}
+        <ShareRow url={`${HOST}/societies/${detail.slug}`} text={detailShareText(detail)} />
+        <ContributeCTA societyName={detail.name} />
+      </main>
+      <Footer />
+    </Layout>
+  );
+};
 
 export const SocietySparse: FC<{ soc: SocietyRecord }> = ({ soc }) => (
   <Layout meta={societySparseMeta(soc)}>
