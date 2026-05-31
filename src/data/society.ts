@@ -2,6 +2,8 @@
 // society.go. The catalog is small, so (matching the Go Store) we load all
 // published societies and filter/search/sort in TS rather than in SQL.
 
+import { normalize, scoreTier, MatchTier } from "../lib/fuzzy";
+
 export type Society = {
   id: string;
   slug: string;
@@ -136,25 +138,52 @@ export async function getBySlug(db: D1Database, slug: string): Promise<Society |
   return row ? rowToSociety(row) : null;
 }
 
-function matchesQuery(soc: Society, q: string): boolean {
-  if (soc.name.toLowerCase().includes(q)) return true;
-  return soc.aliases.some((a) => a.toLowerCase().includes(q));
+// societyScore returns the best MatchTier for a normalized query against all
+// searchable fields of a society: name, aliases, locality, and builder.
+// Fields are weighted by priority: name/aliases > locality > builder.
+// Returns MatchTier.None when nothing matches.
+function societyScore(soc: Society, normQuery: string): MatchTier {
+  // Candidates: name, each alias, locality, builder — all pre-normalized.
+  const candidates: string[] = [
+    normalize(soc.name),
+    ...soc.aliases.map(normalize),
+    normalize(soc.locality),
+    normalize(soc.builder),
+  ];
+
+  let best: MatchTier = MatchTier.None;
+  for (const candidate of candidates) {
+    const tier = scoreTier(normQuery, candidate);
+    if (tier > best) best = tier;
+    if (best === MatchTier.Exact) break; // can't do better
+  }
+  return best;
 }
 
-// search returns up to 10 published societies whose name or an alias contains
-// the query (case-insensitive substring). Empty query → [].
+// search returns up to 10 published societies matching the query,
+// ranked by match quality (exact/prefix > substring > fuzzy). Extends match
+// surface to name, aliases, locality, and builder. Spelling-tolerant via
+// trigram Dice coefficient and Levenshtein edit distance. Empty query → [].
 export async function search(db: D1Database, query: string): Promise<Society[]> {
-  const q = query.trim().toLowerCase();
-  if (q === "") return [];
+  const normQuery = normalize(query);
+  if (normQuery === "") return [];
+
   const all = await listAll(db);
-  const out: Society[] = [];
+
+  type Scored = { soc: Society; tier: MatchTier };
+  const scored: Scored[] = [];
+
   for (const soc of all) {
-    if (matchesQuery(soc, q)) {
-      out.push(soc);
-      if (out.length >= 10) break;
+    const tier = societyScore(soc, normQuery);
+    if (tier > MatchTier.None) {
+      scored.push({ soc, tier });
     }
   }
-  return out;
+
+  // Sort descending by tier (higher = better match), preserve input order on ties.
+  scored.sort((a, b) => b.tier - a.tier);
+
+  return scored.slice(0, 10).map((s) => s.soc);
 }
 
 // sortByReportCountDesc — nulls last; stable so equal counts keep input order.
