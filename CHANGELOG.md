@@ -8,6 +8,21 @@ All notable changes to RentLens are documented here. Format follows
 
 ### Added
 
+- Marketing & growth surface (RENT-hwyzauyd epic). Discoverability:
+  `/sitemap.xml` (static pages + every published society + notes, with
+  `<lastmod>`) and a host-aware `/robots.txt` — `Allow: /` + sitemap only
+  on the canonical host `rentlens.fyi`, `Disallow: /` on staging/preview
+  (`src/lib/seo.ts`). Real 1200×630 branded Open Graph share image
+  replacing the blank stub (`scripts/gen-og.mjs`), plus og:image
+  dimensions/alt + og:locale meta. Conversion: homepage stat band now
+  reads live D1 aggregates (reports/societies/areas) instead of hardcoded
+  numbers; a new `/societies` browse index (most-reported first, reused
+  card grid, CollectionPage JSON-LD) wired into the dead "Browse all"
+  links + header nav. New `/about` page (origin + trust story, provenance
+  tiers explained). Zero-JS share row (WhatsApp/X/email) on society pages.
+  On-site `/notes` blog (TS-module posts, Article JSON-LD) with a launch
+  post on asking-vs-actual Bengaluru rents. (RENT-dbimvled, -bbseylts,
+  -xjsckcob, -jritchmx, -tpfunlby, -aruxinbc.)
 - Area-mismatch flag (RENT-plvqhfmz). Surfaces in admin /submissions
   (red "area mismatch" badge per row + an "Area MM" count in the stats
   bar), in the JSON API (`row.areaMismatch` + `summary.area_mismatch`),

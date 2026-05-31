@@ -50,6 +50,7 @@ const STATIC_ROUTES: ReadonlyArray<{ path: string; changefreq: string; priority:
   { path: "/", changefreq: "daily", priority: "1.0" },
   { path: "/societies", changefreq: "daily", priority: "0.9" },
   { path: "/about", changefreq: "monthly", priority: "0.6" },
+  { path: "/notes", changefreq: "weekly", priority: "0.6" },
   { path: "/how-it-works", changefreq: "monthly", priority: "0.6" },
   { path: "/submit", changefreq: "monthly", priority: "0.7" },
   { path: "/contact", changefreq: "yearly", priority: "0.3" },
@@ -81,11 +82,18 @@ function toLastmod(raw: string | null): string | undefined {
   return new Date(t).toISOString().slice(0, 10);
 }
 
-// buildSitemap — full urlset XML. Static routes first, then one <url> per
-// published society. `origin` is the request origin (so staging emits staging
-// URLs); callers should only serve this on the canonical host anyway, but it
-// stays correct either way.
-export function buildSitemap(origin: string, societies: SitemapSociety[]): string {
+// A dated content entry (e.g. a notes article): path + ISO date for <lastmod>.
+export type SitemapEntry = { path: string; lastUpdated: string | null };
+
+// buildSitemap — full urlset XML. Static routes first, then dated content
+// entries (notes), then one <url> per published society. `origin` is the
+// request origin (so staging emits staging URLs); callers should only serve
+// this on the canonical host anyway, but it stays correct either way.
+export function buildSitemap(
+  origin: string,
+  societies: SitemapSociety[],
+  entries: SitemapEntry[] = [],
+): string {
   const urls: string[] = [];
   for (const r of STATIC_ROUTES) {
     urls.push(
@@ -93,6 +101,17 @@ export function buildSitemap(origin: string, societies: SitemapSociety[]): strin
         `    <loc>${xmlEscape(origin + r.path)}</loc>\n` +
         `    <changefreq>${r.changefreq}</changefreq>\n` +
         `    <priority>${r.priority}</priority>\n` +
+        `  </url>`,
+    );
+  }
+  for (const e of entries) {
+    const lastmod = toLastmod(e.lastUpdated);
+    urls.push(
+      `  <url>\n` +
+        `    <loc>${xmlEscape(origin + e.path)}</loc>\n` +
+        (lastmod ? `    <lastmod>${lastmod}</lastmod>\n` : "") +
+        `    <changefreq>monthly</changefreq>\n` +
+        `    <priority>0.6</priority>\n` +
         `  </url>`,
     );
   }

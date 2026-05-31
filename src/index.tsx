@@ -11,6 +11,8 @@ import { listFeatured, filterFeatured, search, getBySlug, listAll } from "./data
 import { homeStats } from "./data/stats";
 import { SocietiesIndex } from "./views/pages/societies";
 import { About } from "./views/pages/about";
+import { NotesIndex, NoteArticle } from "./views/pages/notes";
+import { notesByDate, noteBySlug } from "./data/notes";
 import { robotsTxt, buildSitemap } from "./lib/seo";
 import { societyDetailBySlug } from "./data/society-detail";
 import { Contact, ContactSuccess } from "./views/pages/contact";
@@ -771,6 +773,7 @@ app.get("/sitemap.xml", async (c) => {
   const xml = buildSitemap(
     origin,
     societies.map((s) => ({ slug: s.slug, lastUpdated: s.lastUpdated })),
+    notesByDate().map((n) => ({ path: `/notes/${n.slug}`, lastUpdated: n.date })),
   );
   return c.body(xml, 200, {
     "Content-Type": "application/xml; charset=UTF-8",
@@ -780,6 +783,15 @@ app.get("/sitemap.xml", async (c) => {
 
 // ---- Static content pages ----
 app.get("/about", async (c) => c.html(<About stats={await homeStats(c.env.DB)} />));
+
+// ---- Notes (on-site blog, RENT-aruxinbc) ----
+app.get("/notes", (c) => c.html(<NotesIndex notes={notesByDate()} />));
+app.get("/notes/:slug", (c) => {
+  const note = noteBySlug(c.req.param("slug"));
+  if (!note) return c.notFound();
+  return c.html(<NoteArticle note={note} />);
+});
+
 app.get("/how-it-works", (c) => c.html(<HowItWorks />));
 app.get("/privacy", (c) => c.html(<Privacy />));
 app.get("/terms", (c) => c.html(<Terms />));
