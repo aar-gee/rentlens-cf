@@ -9,6 +9,21 @@ DB-population model) first; this file is the data-specific layer on top.
 
 Decision log lives in memory: `seed-trust-decisions.md`. fp epic: `RENT-vuidxkts`.
 
+## Current state (v0.2.0 — shipped to prod 2026-05-31)
+
+rentlens.fyi is **live** with the full seed/trust + honesty work. Quick orientation:
+- **Migration head: `0016`.** (0012 roster, 0013 city, 0014 rent_observations, 0015
+  society corrections, 0016 Magnificia description.)
+- **Builders:** 30 (19 tier-A / 11 tier-B). **Societies:** ~38 published. NOTE prod
+  has ~2 societies beyond the 36-row `seed/societies.csv` (prod-only rows) — **don't
+  assume the seed CSV equals prod; query prod D1 (`--remote`) when counts matter.**
+- All grounded societies are `provenance='estimated'`; promotion to `resident` is wired
+  via admin publish (≥3 reports). Detail pages are D1-backed for every society.
+- **Next data task:** the **Google-CSE discovery feeder** (RENT-dqfzfbeq) — automate
+  what the research harness did by hand, writing to `rent_observations` behind a human
+  review queue (never auto-publish, never add builders). `GOOGLE_CSE_KEY`/`CX` secrets
+  are not yet provisioned.
+
 ---
 
 ## 1. The data model
@@ -47,6 +62,9 @@ Generators (all build-time, NOT shipped to the Worker):
 - `seed/gen-builders.ts` → `0003_builders.sql` (**historical**; superseded as roster authority)
 - `seed/gen-builders-roster.ts` ← `seed/builders.csv` → `0012_builders_roster.sql` (current roster authority)
 - `seed/gen-rent-observations.ts` ← `seed/rent-observations.csv` → `0014_rent_observations.sql`
+- Hand-written corrections (no generator): `0015_society_corrections.sql` (rename/
+  relocate + grounded rent for the 2 mis-seeded societies) and
+  `0016_magnificia_description.sql`. Migration head is **`0016`** — the next is `0017`.
 
 ---
 
@@ -85,11 +103,13 @@ Generators (all build-time, NOT shipped to the Worker):
   noted (semi-furnished is the Bengaluru default); we do NOT seed per-furnishing rows.
 - **The research is also a data-integrity audit.** It reliably surfaces:
   - **Fabricated configs** — e.g. a seeded 2BHK on a villa/3BHK-only society. NULL the
-    fabricated config (10 societies were corrected this way).
+    fabricated config (10 societies fixed this way in `0014`).
   - **Mislocated / misnamed societies** — e.g. "Salarpuria Sattva Magnus" didn't exist
     in Bengaluru (it's a Hyderabad project) → renamed to **Sattva Magnificia**
     (Mahadevapura); "Prestige Sunrise Park" was in **Electronics City Ph1**, not
-    Bellandur. Always verify a society's existence + config before trusting the seed.
+    Bellandur (both corrected in `0015`; old Magnus slug 301-redirects). Always verify
+    a society's existence + config before trusting the seed — assume more such errors
+    remain in the un-audited rows.
 - Slug renames: rely on FK `ON UPDATE CASCADE` (submissions, rent_observations), add a
   **301** via `SLUG_REDIRECTS` in `src/index.tsx`, and keep the old name as an alias.
 
@@ -122,7 +142,8 @@ without a version being cut. **Don't.** The process (also in `CLAUDE.md` §4) is
 
 SemVer-ish (pre-1.0, loose but consistent): **major** = breaking schema/URL change,
 **minor** = new user-facing feature, **patch** = fix/copy. Tag history is the record
-of what's actually in prod — keep it honest. (Current: `v0.1.0`, 2026-05-30.)
+of what's actually in prod — keep it honest. (Latest: `v0.2.0`, 2026-05-31; next is
+`v0.3.0`. v0.1.0 was 2026-05-30.)
 
 ---
 
