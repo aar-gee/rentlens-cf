@@ -26,7 +26,6 @@ export const Footer: FC<{ figLabel?: string }> = ({ figLabel }) => (
         {figLabel && figLabel !== "" ? figLabel : "Fig. 01 — Homepage"}
       </span>
       <span class="flex-1 h-px bg-hairline" />
-      <span class="num text-[10px] text-ink-faint tracking-[0.14em] uppercase">v0.1 · MVP</span>
     </div>
   </footer>
 );
