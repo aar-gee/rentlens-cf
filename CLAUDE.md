@@ -6,6 +6,16 @@ This file is the contract for future agents and humans working on this repo. **R
 
 If you change how the project is built, deployed, or organized, update this file in the same commit. Stale practice docs are worse than no practice docs.
 
+### Read your role's charter too
+
+This repo is worked by several specialized agents. `CLAUDE.md` (this file) + `FP_CLAUDE.md` are the **shared** contract for everyone. In addition, **if your task maps to a role below, read that agent's charter at the repo root before starting** — it scopes what you own, what to hand off, and the spirit of the work:
+
+- **Marketing / SEO / content / growth / brand copy** → [`marketing-agent.md`](marketing-agent.md)
+- **Data: aggregation, provenance promotion, submissions→display pipeline** → `data-agent.md` *(planned)*
+- **Core engineering: submit flow, admin, schema/migrations, auth, anti-spam** → `engineering-agent.md` *(planned)*
+
+A planned charter may not exist yet — skip it if absent. When a charter and this file conflict on *how to build/deploy*, this file wins; the charter governs *what you work on*.
+
 ---
 
 ## 1. What this project is
