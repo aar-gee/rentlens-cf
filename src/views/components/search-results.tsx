@@ -53,7 +53,7 @@ const SearchRow: FC<{ soc: Society; last: boolean; picker: boolean }> = ({ soc, 
       data-target-slug="submit-society-slug"
       data-target-locality="submit-locality"
       data-target-results="submit-society-results"
-      class={rowClass(last) + " w-full text-left bg-transparent"}
+      class={rowClass(last) + " w-full text-left bg-white"}
     >
       <RowBody soc={soc} />
     </button>
@@ -83,7 +83,7 @@ const AddNewAffordance: FC<{ query: string }> = ({ query }) => (
       data-target-name="submit-society-name"
       data-target-slug="submit-society-slug"
       data-target-results="submit-society-results"
-      class="flex items-center gap-3 w-full text-left px-4 py-3 hover:bg-parchment-deep/50 transition-colors bg-transparent cursor-pointer"
+      class="flex items-center gap-3 w-full text-left px-4 py-3 hover:bg-parchment-deep/50 transition-colors bg-white cursor-pointer"
     >
       <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-marigold/15 text-marigold-deep flex-shrink-0 font-medium text-base leading-none">
         +

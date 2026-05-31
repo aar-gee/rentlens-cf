@@ -17,7 +17,7 @@ const MatchRow: FC<{ name: string; last: boolean }> = ({ name, last }) => (
     data-target-name="submit-locality"
     data-target-results="submit-locality-results"
     class={
-      "flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-parchment-deep/50 transition-colors no-underline cursor-pointer w-full text-left bg-transparent" +
+      "flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-parchment-deep/50 transition-colors no-underline cursor-pointer w-full text-left bg-white" +
       (last ? "" : " border-b border-hairline")
     }
   >
@@ -36,7 +36,7 @@ const AddNewRow: FC<{ query: string; hasPriorRows: boolean }> = ({ query, hasPri
     data-target-name="submit-locality"
     data-target-results="submit-locality-results"
     class={
-      "flex items-center gap-3 w-full text-left px-4 py-3 hover:bg-parchment-deep/50 transition-colors bg-transparent cursor-pointer" +
+      "flex items-center gap-3 w-full text-left px-4 py-3 hover:bg-parchment-deep/50 transition-colors bg-white cursor-pointer" +
       (hasPriorRows ? " border-t border-hairline" : "")
     }
   >
