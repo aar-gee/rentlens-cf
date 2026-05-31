@@ -37,7 +37,8 @@ All notable changes to RentLens are documented here. Format follows
   through typos and word-order/spacing differences via normalized tokens +
   trigram Dice + Levenshtein (`src/lib/fuzzy.ts`), ranked by match quality,
   and extends the match surface to locality + builder (was name+aliases
-  substring only). "sobha dreem acres", "embassy pristne" now resolve.
+  substring only). "sobha dreem acres", "embassy pristne" now resolve. The
+  search box is now also on the `/societies` browse page, not just the homepage.
 - Paginated `/societies` browse grid (RENT-uwfksoeg). First 24 cards
   server-rendered, the rest infinite-scroll via an HTMX `revealed` sentinel
   hitting `GET /societies/page?offset=`; JSON-LD ItemList capped at 50
