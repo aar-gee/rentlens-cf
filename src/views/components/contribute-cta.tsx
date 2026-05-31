@@ -1,4 +1,5 @@
 import type { FC } from "hono/jsx";
+import type { HomeStats } from "../../data/stats";
 
 // Port of components/contribute_cta.templ. Empty societyName → homepage copy;
 // set → society-specific variant.
@@ -8,7 +9,9 @@ const Arrow: FC = () => (
   </svg>
 );
 
-const ContributeCTAHome: FC = () => (
+const fmt = (n: number) => n.toLocaleString("en-IN");
+
+const ContributeCTAHome: FC<{ stats: HomeStats }> = ({ stats }) => (
   <section id="contribute" class="px-5 sm:px-8 py-20 sm:py-28 bg-ink text-parchment relative overflow-hidden">
     <div aria-hidden="true" class="absolute inset-0 opacity-[0.07] pointer-events-none">
       <div class="absolute top-0 left-0 sm:left-[10%] w-px h-full bg-parchment" />
@@ -39,15 +42,15 @@ const ContributeCTAHome: FC = () => (
       </div>
       <div class="mt-16 sm:mt-20 pt-10 border-t border-parchment/10 grid grid-cols-2 md:grid-cols-4 gap-8 text-left">
         <div>
-          <div class="num text-2xl font-medium">412</div>
+          <div class="num text-2xl font-medium">{fmt(stats.reports)}</div>
           <div class="eyebrow !text-parchment/50 mt-1">Reports</div>
         </div>
         <div>
-          <div class="num text-2xl font-medium">30</div>
+          <div class="num text-2xl font-medium">{fmt(stats.societies)}</div>
           <div class="eyebrow !text-parchment/50 mt-1">Societies</div>
         </div>
         <div>
-          <div class="num text-2xl font-medium">4</div>
+          <div class="num text-2xl font-medium">{fmt(stats.areas)}</div>
           <div class="eyebrow !text-parchment/50 mt-1">Areas covered</div>
         </div>
         <div>
@@ -91,5 +94,11 @@ const ContributeCTASociety: FC<{ name: string }> = ({ name }) => (
   </section>
 );
 
-export const ContributeCTA: FC<{ societyName?: string }> = ({ societyName }) =>
-  societyName && societyName !== "" ? <ContributeCTASociety name={societyName} /> : <ContributeCTAHome />;
+// Home variant needs live counters; society variant doesn't. `stats` is
+// required whenever societyName is empty (the homepage path).
+export const ContributeCTA: FC<{ societyName?: string; stats?: HomeStats }> = ({ societyName, stats }) =>
+  societyName && societyName !== "" ? (
+    <ContributeCTASociety name={societyName} />
+  ) : (
+    <ContributeCTAHome stats={stats ?? { reports: 0, societies: 0, areas: 0 }} />
+  );

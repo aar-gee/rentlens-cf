@@ -10,7 +10,7 @@ export const Header: FC = () => (
           RentLens<span class="text-marigold">.</span>
         </a>
         <nav class="hidden lg:flex items-center gap-7 text-sm text-parchment/75">
-          <a href="/" class="link-u hover:text-parchment">Browse</a>
+          <a href="/societies" class="link-u hover:text-parchment">Browse</a>
           <a href="/how-it-works" class="link-u hover:text-parchment">How it works</a>
           <a href="/privacy" class="link-u hover:text-parchment">Privacy</a>
         </nav>

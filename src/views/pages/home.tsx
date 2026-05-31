@@ -1,5 +1,6 @@
 import type { FC } from "hono/jsx";
 import type { Society } from "../../data/society";
+import type { HomeStats } from "../../data/stats";
 import { Layout } from "../layout";
 import { Header } from "../components/header";
 import { Footer } from "../components/footer";
@@ -132,7 +133,7 @@ const FeaturedSection: FC<{ featured: Society[] }> = ({ featured }) => (
           </h2>
         </div>
         <a
-          href="#"
+          href="/societies"
           class="hidden sm:inline-flex items-center gap-1.5 text-sm text-ink-mute hover:text-ink link-u whitespace-nowrap"
         >
           Browse all societies
@@ -144,7 +145,7 @@ const FeaturedSection: FC<{ featured: Society[] }> = ({ featured }) => (
           <FeaturedCardsInner featured={featured} />
         </div>
       </div>
-      <a href="#" class="sm:hidden mt-4 inline-flex items-center gap-1.5 text-sm text-ink-mute link-u">
+      <a href="/societies" class="sm:hidden mt-4 inline-flex items-center gap-1.5 text-sm text-ink-mute link-u">
         Browse all societies
         <Arrow />
       </a>
@@ -265,7 +266,7 @@ const WhyThisExistsSection: FC = () => (
   </section>
 );
 
-export const Home: FC<{ featured: Society[] }> = ({ featured }) => (
+export const Home: FC<{ featured: Society[]; stats: HomeStats }> = ({ featured, stats }) => (
   <Layout
     meta={{
       title: "RentLens — real rents from real residents",
@@ -282,7 +283,7 @@ export const Home: FC<{ featured: Society[] }> = ({ featured }) => (
       <FeaturedSection featured={featured} />
       <HowItWorksSection />
       <WhyThisExistsSection />
-      <ContributeCTA />
+      <ContributeCTA stats={stats} />
     </main>
     <Footer />
   </Layout>

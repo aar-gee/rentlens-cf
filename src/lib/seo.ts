@@ -48,6 +48,7 @@ export function robotsTxt(origin: string): string {
 // they appear in the sitemap. The homepage leads at priority 1.0.
 const STATIC_ROUTES: ReadonlyArray<{ path: string; changefreq: string; priority: string }> = [
   { path: "/", changefreq: "daily", priority: "1.0" },
+  { path: "/societies", changefreq: "daily", priority: "0.9" },
   { path: "/how-it-works", changefreq: "monthly", priority: "0.6" },
   { path: "/submit", changefreq: "monthly", priority: "0.7" },
   { path: "/contact", changefreq: "yearly", priority: "0.3" },

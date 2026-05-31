@@ -8,6 +8,8 @@ import { SearchResults } from "./views/components/search-results";
 import { AreaResults } from "./views/components/area-results";
 import { MoverResults } from "./views/components/mover-results";
 import { listFeatured, filterFeatured, search, getBySlug, listAll } from "./data/society";
+import { homeStats } from "./data/stats";
+import { SocietiesIndex } from "./views/pages/societies";
 import { robotsTxt, buildSitemap } from "./lib/seo";
 import { societyDetailBySlug } from "./data/society-detail";
 import { Contact, ContactSuccess } from "./views/pages/contact";
@@ -166,8 +168,17 @@ app.route(ADMIN_PREFIX, adminApp);
 
 // Homepage — featured (most-reported) societies + autocomplete search + filters.
 app.get("/", async (c) => {
-  const featured = await listFeatured(c.env.DB, 6);
-  return c.html(<Home featured={featured} />);
+  const [featured, stats] = await Promise.all([listFeatured(c.env.DB, 6), homeStats(c.env.DB)]);
+  return c.html(<Home featured={featured} stats={stats} />);
+});
+
+// /societies — full browseable directory. Most-reported first, then A→Z, so
+// the richest data leads. Linked from the homepage "Browse all societies" CTAs
+// and the header nav; listed in the sitemap.
+app.get("/societies", async (c) => {
+  const [all, stats] = await Promise.all([listAll(c.env.DB), homeStats(c.env.DB)]);
+  const societies = all.sort((a, b) => (b.reportCount ?? 0) - (a.reportCount ?? 0) || a.name.localeCompare(b.name));
+  return c.html(<SocietiesIndex societies={societies} stats={stats} />);
 });
 
 // /search — autocomplete dropdown HTML fragment. Accepts q or society_name
