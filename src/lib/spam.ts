@@ -17,23 +17,62 @@
 export const SPAM_WINDOW_DAYS = 7;
 export const SPAM_MAX_PER_WINDOW = 5;
 
-// isProbableSpam — true when this submission's help_contact has already
-// posted >= SPAM_MAX_PER_WINDOW reports in the last SPAM_WINDOW_DAYS.
-// Returns false for empty help_contact (anonymous submissions aren't
-// rate-limited on email — they'd need a different signal, out of scope).
+// Per-IP threshold is intentionally more lenient than per-email — shared
+// IPs are legitimate (family WiFi, office NAT, carrier-grade NAT in India).
+// 10/7d catches obvious abuse without blocking households.
+export const SPAM_IP_WINDOW_DAYS = 7;
+export const SPAM_IP_MAX_PER_WINDOW = 10;
+
+// isProbableSpam — true when EITHER:
+//   - this submission's help_contact has posted >= SPAM_MAX_PER_WINDOW
+//     reports in the last SPAM_WINDOW_DAYS, OR
+//   - this submission's ip_address has posted >= SPAM_IP_MAX_PER_WINDOW
+//     reports in the last SPAM_IP_WINDOW_DAYS.
 //
-// Counts ALL prior submissions for this email regardless of moderation
-// status (pending/published/rejected) — a spammer's rejected attempts are
-// still spam-signal. Verify state is also ignored: even verified emails get
-// counted (otherwise a single verification would be a no-rate-limit pass).
-export async function isProbableSpam(db: D1Database, helpContact: string): Promise<boolean> {
-  if (helpContact === "") return false;
-  const cutoff = isoCutoff(SPAM_WINDOW_DAYS);
-  const row = await db
-    .prepare(`SELECT count(*) AS n FROM submissions WHERE help_contact = ? AND created_at > ?`)
-    .bind(helpContact, cutoff)
-    .first<{ n: number }>();
-  return (row?.n ?? 0) >= SPAM_MAX_PER_WINDOW;
+// Empty signals skip their rule (anonymous submissions can't be email-rated;
+// IP can be missing if CF-Connecting-IP isn't set, e.g. local dev). Counts
+// include ALL prior submissions regardless of moderation status / verify
+// state — a spammer's rejected or unverified attempts are still spam signal.
+export async function isProbableSpam(
+  db: D1Database,
+  helpContact: string,
+  ipAddress: string,
+): Promise<boolean> {
+  if (helpContact !== "") {
+    const cutoff = isoCutoff(SPAM_WINDOW_DAYS);
+    const row = await db
+      .prepare(`SELECT count(*) AS n FROM submissions WHERE help_contact = ? AND created_at > ?`)
+      .bind(helpContact, cutoff)
+      .first<{ n: number }>();
+    if ((row?.n ?? 0) >= SPAM_MAX_PER_WINDOW) return true;
+  }
+  if (ipAddress !== "") {
+    const cutoff = isoCutoff(SPAM_IP_WINDOW_DAYS);
+    const row = await db
+      .prepare(`SELECT count(*) AS n FROM submissions WHERE ip_address = ? AND created_at > ?`)
+      .bind(ipAddress, cutoff)
+      .first<{ n: number }>();
+    if ((row?.n ?? 0) >= SPAM_IP_MAX_PER_WINDOW) return true;
+  }
+  return false;
+}
+
+// getClientIp — extract the trustworthy client IP from request headers.
+// On Cloudflare Workers, CF-Connecting-IP is set by the edge and can't be
+// spoofed by the client; that's the production path. X-Forwarded-For leftmost
+// is the fallback (local dev, non-CF). The XFF fallback is lower-trust
+// because clients can prepend arbitrary entries — accept that for the dev
+// path; CF is the production path and is authoritative.
+export function getClientIp(getHeader: (name: string) => string | undefined): string {
+  const cfIp = getHeader("CF-Connecting-IP");
+  if (cfIp && cfIp.trim() !== "") return cfIp.trim();
+  const xff = getHeader("X-Forwarded-For");
+  if (xff && xff.trim() !== "") {
+    // XFF is "client, proxy1, proxy2" — leftmost is the originating client.
+    const first = xff.split(",")[0];
+    if (first) return first.trim();
+  }
+  return "";
 }
 
 // effectiveSubmissionFilter — SQL WHERE-clause snippet for aggregate readers

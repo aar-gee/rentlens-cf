@@ -34,6 +34,7 @@ import {
   persistSubmission,
   isValidEmail,
 } from "./lib/submit";
+import { getClientIp } from "./lib/spam";
 import { sendEmail, type EmailEnv } from "./lib/email";
 import {
   createVerification,
@@ -238,6 +239,7 @@ app.post("/submit/step1", async (c) => {
   }
   if (body["skip_step2"] === "true") {
     const sub = buildSubmission(step1, emptyStep2());
+    sub.ipAddress = getClientIp((n) => c.req.header(n));
     await persistSubmission(c.env.DB, sub);
     // helpContact = step1.email here (Step 2 was never rendered → s2.helpContact
     // is empty → buildSubmission falls back to step1.email). respondAfterPersist
@@ -320,6 +322,7 @@ app.post("/submit/step2b", async (c) => {
     return c.html(<SubmitStep2B step1={step1} step2={step2} errors={errs} siteKey={c.env.TURNSTILE_SITE_KEY} />);
   }
   const sub = buildSubmission(step1, step2);
+  sub.ipAddress = getClientIp((n) => c.req.header(n));
   await persistSubmission(c.env.DB, sub);
   return respondAfterPersist(c, sub);
 });

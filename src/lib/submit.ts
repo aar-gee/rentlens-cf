@@ -249,10 +249,10 @@ export async function persistSubmission(db: D1Database, sub: Submission): Promis
     const psId = await findOrCreatePendingSociety(db, sub.societyName, sub.locality, sub.pendingAreaId);
     if (psId) sub.pendingSocietyId = psId;
   }
-  // Silent per-email rate rule (RENT-okskjmao). Computed BEFORE insert so the
-  // count only sees PRIOR submissions — this row becomes part of the count
-  // for the next attempt. No-ops for empty help_contact (anonymous reports
-  // can't be rate-limited on email; they'd need a different signal).
-  sub.spamFlag = await isProbableSpam(db, sub.helpContact);
+  // Silent rate rule (RENT-okskjmao) — per-email OR per-IP. Computed BEFORE
+  // insert so the count only sees PRIOR submissions; this row becomes part
+  // of the count for the next attempt. Empty signals skip their own rule
+  // (anonymous helpContact + local dev with no CF-Connecting-IP both no-op).
+  sub.spamFlag = await isProbableSpam(db, sub.helpContact, sub.ipAddress);
   return insertSubmission(db, sub);
 }

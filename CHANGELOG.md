@@ -8,16 +8,21 @@ All notable changes to RentLens are documented here. Format follows
 
 ### Added
 
-- Silent per-email spam control (RENT-okskjmao). New `spam_flag` column on
-  `submissions`, set at insert time when the contributor's `help_contact`
-  has already posted ≥ 5 reports in the last 7 days (both tunable in
-  `src/lib/spam.ts`). No UI signal — the contributor sees the standard
-  success / verify flow. Aggregate readers (when the publish-time
-  recompute lands) use `effectiveSubmissionFilter()` to exclude flagged
-  rows EXCEPT when the society has only flagged data (degrade gracefully —
-  don't blank a spammer-only society). Verified emails are NOT exempt:
-  verification proves inbox ownership, not non-spamminess. Anonymous
-  submissions (empty help_contact) skip the rule.
+- Silent per-email + per-IP spam control (RENT-okskjmao). New `spam_flag`
+  and `ip_address` columns on `submissions`. `spam_flag` flips to 1 when
+  EITHER (a) the contributor's `help_contact` has already posted ≥ 5
+  reports in the last 7 days, OR (b) the client IP (from CF-Connecting-IP,
+  with X-Forwarded-For leftmost as fallback) has posted ≥ 10 reports in
+  the last 7 days. The per-IP threshold is more lenient than per-email
+  because shared IPs are legitimate (home WiFi, office NAT, CGNAT in
+  India). Both thresholds tunable in `src/lib/spam.ts`. No UI signal —
+  the contributor sees the standard success / verify flow. Aggregate
+  readers (when the publish-time recompute lands) use
+  `effectiveSubmissionFilter()` to exclude flagged rows EXCEPT when the
+  society has only flagged data (degrade gracefully — don't blank a
+  spammer-only society). Verified emails are NOT exempt: verification
+  proves inbox ownership, not non-spamminess. Anonymous and IP-less
+  submissions skip their respective rule.
 - "Verify email" button on Step 1 of /submit (user feedback 2026-05-30,
   RENT-ahstlnjb continued). Clicking it sends the verification email
   immediately — no need to finish the form first. Cookie-backed

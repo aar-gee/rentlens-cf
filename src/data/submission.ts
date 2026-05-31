@@ -30,11 +30,16 @@ export type Submission = {
   moverNeedsReview: boolean;
   willingToHelp: boolean;
   helpContact: string;
-  // Silent per-email spam control (RENT-okskjmao). Set at insert time by
-  // persistSubmission via isProbableSpam(); never mutated through the
-  // contributor-facing flow. Aggregate readers filter on it via
+  // Silent per-email + per-IP spam control (RENT-okskjmao). Set at insert
+  // time by persistSubmission via isProbableSpam(); never mutated through
+  // the contributor-facing flow. Aggregate readers filter on spamFlag via
   // effectiveSubmissionFilter() in src/lib/spam.ts.
   spamFlag: boolean;
+  // Client IP at submission time (CF-Connecting-IP on prod; XFF leftmost
+  // fallback for local dev). Used by the IP-rate spam rule; never shown in
+  // public UI. Retention policy is informal for now — older rows can be
+  // purged periodically as traffic grows.
+  ipAddress: string;
 };
 
 // newSubmission returns a blank submission with sensible zero-values.
@@ -68,6 +73,7 @@ export function newSubmission(): Submission {
     willingToHelp: false,
     helpContact: "",
     spamFlag: false,
+    ipAddress: "",
   };
 }
 
@@ -84,8 +90,8 @@ export async function insertSubmission(db: D1Database, sub: Submission): Promise
         sqft, deposit, block, move_in_month, move_out_month,
         rating_value, rating_quality, rating_owner, note,
         source_channel, source_detail, mover_name, mover_rating,
-        willing_to_help, help_contact, spam_flag
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        willing_to_help, help_contact, spam_flag, ip_address
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       sub.id,
@@ -115,6 +121,7 @@ export async function insertSubmission(db: D1Database, sub: Submission): Promise
       sub.willingToHelp ? 1 : 0,
       sub.helpContact,
       sub.spamFlag ? 1 : 0,
+      sub.ipAddress,
     )
     .run();
   return sub.id;
