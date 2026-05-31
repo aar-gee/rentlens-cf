@@ -526,6 +526,6 @@ export const Submit: FC<{ step1: Step1Data; errors: Errors; siteKey?: string; pr
         </form>
       </div>
     </main>
-    <Footer figLabel="Fig. 03 — Submit step 1" />
+    <Footer />
   </Layout>
 );

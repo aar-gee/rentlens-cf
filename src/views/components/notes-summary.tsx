@@ -26,7 +26,7 @@ export const NotesSummary: FC<{ summary: string; sampleSize: number }> = ({ summ
   <div class="mt-6 bg-white border border-hairline p-6 sm:p-7">
     <div class="flex items-start gap-4">
       <span class="num text-[10px] text-marigold-deep tracking-[0.14em] uppercase mt-1 hidden sm:block">
-        Fig. 02 — Resident notes
+        Resident notes
       </span>
       <div class="flex-1">
         <div class="eyebrow mb-2 sm:hidden">/ Resident notes · summarized</div>

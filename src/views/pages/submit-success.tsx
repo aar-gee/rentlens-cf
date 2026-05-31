@@ -218,6 +218,6 @@ export const SubmitSuccess: FC<{ sub: Submission }> = ({ sub }) => (
         </p>
       </div>
     </main>
-    <Footer figLabel="Fig. 03 — Submit success" />
+    <Footer />
   </Layout>
 );

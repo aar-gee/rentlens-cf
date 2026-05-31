@@ -49,7 +49,7 @@ export const Verify: FC<{ state: VerifyState }> = ({ state }) => (
     <main class="px-5 sm:px-8 py-14 sm:py-24">
       <div class="max-w-narrow mx-auto">{renderState(state)}</div>
     </main>
-    <Footer figLabel="Fig. 04 — Verify email" />
+    <Footer />
   </Layout>
 );
 

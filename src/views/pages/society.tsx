@@ -227,7 +227,6 @@ const SummarySection: FC<{ d: SocietyDetail }> = ({ d }) => (
       </div>
       <div class="mt-5 flex flex-col sm:flex-row sm:items-center gap-3 bg-parchment-deep/40 border border-hairline p-5">
         <div class="flex items-center gap-3">
-          <span class="num text-[10px] text-marigold-deep tracking-[0.14em] uppercase">Fig. 01</span>
           <div class="text-sm">
             <span class="text-ink-mute">Total monthly outflow estimate for a typical {d.totalOutflowBHK}:</span>
             <span class="num font-medium text-ink ml-2">{formatINR(d.totalOutflowEstimate)}</span>
@@ -450,7 +449,7 @@ export const Society: FC<{ detail: SocietyDetail }> = ({ detail }) => (
       <ShareRow url={`${HOST}/societies/${detail.slug}`} text={detailShareText(detail)} />
       <ContributeCTA societyName={detail.name} />
     </main>
-    <Footer figLabel="Fig. 02 — Society page" />
+    <Footer />
   </Layout>
 );
 
@@ -506,6 +505,6 @@ export const SocietySparse: FC<{ soc: SocietyRecord }> = ({ soc }) => (
       />
       <ContributeCTA societyName={soc.name} />
     </main>
-    <Footer figLabel="Fig. 02 — Society page · sparse" />
+    <Footer />
   </Layout>
 );

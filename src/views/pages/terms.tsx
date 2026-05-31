@@ -144,6 +144,6 @@ export const Terms: FC = () => (
       </section>
       <ContributeCTA />
     </main>
-    <Footer figLabel="Fig. 05 — Terms" />
+    <Footer />
   </Layout>
 );

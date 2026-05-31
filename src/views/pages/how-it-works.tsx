@@ -340,6 +340,6 @@ export const HowItWorks: FC = () => (
 
       <ContributeCTA />
     </main>
-    <Footer figLabel="Fig. 03 — How it works" />
+    <Footer />
   </Layout>
 );

@@ -354,7 +354,7 @@ export const SubmitStep2A: FC<{ step1: Step1Data; step2: Step2Data; errors: Erro
         </form>
       </div>
     </main>
-    <Footer figLabel="Fig. 04 — Submit step 2" />
+    <Footer />
     <CounterScript />
   </Layout>
 );
@@ -416,7 +416,7 @@ export const SubmitStep2B: FC<{ step1: Step1Data; step2: Step2Data; errors: Erro
         </form>
       </div>
     </main>
-    <Footer figLabel="Fig. 05 — Submit step 3" />
+    <Footer />
     <CounterScript />
   </Layout>
 );

@@ -157,6 +157,6 @@ export const About: FC<{ stats: HomeStats }> = ({ stats }) => (
 
       <ContributeCTA stats={stats} />
     </main>
-    <Footer figLabel="Fig. 06 — About" />
+    <Footer />
   </Layout>
 );

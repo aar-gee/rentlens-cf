@@ -108,7 +108,7 @@ export const Contact: FC<{ data: ContactFormData; errors: Errors; siteKey?: stri
         </form>
       </div>
     </main>
-    <Footer figLabel="Fig. 06 — Contact" />
+    <Footer />
     <CounterScript />
   </Layout>
 );
@@ -163,6 +163,6 @@ export const ContactSuccess: FC<{ category: string }> = ({ category }) => (
         </div>
       </div>
     </main>
-    <Footer figLabel="Fig. 06 — Contact success" />
+    <Footer />
   </Layout>
 );

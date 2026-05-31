@@ -163,6 +163,6 @@ export const Privacy: FC = () => (
       </section>
       <ContributeCTA />
     </main>
-    <Footer figLabel="Fig. 04 — Privacy" />
+    <Footer />
   </Layout>
 );

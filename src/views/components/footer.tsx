@@ -1,9 +1,8 @@
 import type { FC } from "hono/jsx";
 
 // Footer renders the light bottom footer that closes every page.
-// figLabel overrides the bottom-strip fig marker; empty → "Fig. 01 — Homepage".
 // Ported from the Go repo's components/footer.templ.
-export const Footer: FC<{ figLabel?: string }> = ({ figLabel }) => (
+export const Footer: FC = () => (
   <footer class="px-5 sm:px-8 py-10 sm:py-12 border-t border-hairline">
     <div class="max-w-wide mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-6">
       <div class="flex items-center gap-3 text-sm">
@@ -20,12 +19,6 @@ export const Footer: FC<{ figLabel?: string }> = ({ figLabel }) => (
         <span class="text-hairline-strong">·</span>
         <a href="/contact" class="link-u">Contact</a>
       </div>
-    </div>
-    <div class="max-w-wide mx-auto mt-8 pt-6 border-t border-hairline/50 flex items-center gap-3">
-      <span class="num text-[10px] text-ink-faint tracking-[0.14em] uppercase">
-        {figLabel && figLabel !== "" ? figLabel : "Fig. 01 — Homepage"}
-      </span>
-      <span class="flex-1 h-px bg-hairline" />
     </div>
   </footer>
 );

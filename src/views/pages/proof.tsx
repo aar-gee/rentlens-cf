@@ -39,7 +39,7 @@ export const ProofPage: FC<{ state: ProofPageState; siteKey?: string }> = ({ sta
     <main class="px-5 sm:px-8 py-14 sm:py-24">
       <div class="max-w-narrow mx-auto">{renderState(state, siteKey)}</div>
     </main>
-    <Footer figLabel="Fig. 06 — Add proof" />
+    <Footer />
   </Layout>
 );
 

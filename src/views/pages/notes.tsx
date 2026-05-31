@@ -76,7 +76,7 @@ export const NotesIndex: FC<{ notes: Note[] }> = ({ notes }) => (
         </div>
       </section>
     </main>
-    <Footer figLabel="Fig. 07 — Notes" />
+    <Footer />
   </Layout>
 );
 
@@ -123,7 +123,7 @@ export const NoteArticle: FC<{ note: Note }> = ({ note }) => {
           </div>
         </article>
       </main>
-      <Footer figLabel="Fig. 07 — Notes" />
+      <Footer />
     </Layout>
   );
 };

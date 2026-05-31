@@ -253,10 +253,7 @@ const WhyThisExistsSection: FC = () => (
           </ul>
         </div>
       </div>
-      <div class="mt-6 flex items-start gap-3 text-sm text-ink-mute">
-        <span class="num text-[10px] text-marigold-deep tracking-[0.14em] uppercase mt-1.5 hidden sm:inline">
-          Fig. 02
-        </span>
+      <div class="mt-6 text-sm text-ink-mute">
         <p>
           <span class="num text-ink font-medium">₹1,56,000</span> a year — the gap between the asking price and what
           residents actually pay, on a single 3 BHK lease. Seeing it before you sign is why this exists.
