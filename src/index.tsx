@@ -278,8 +278,16 @@ app.get("/featured", async (c) => {
 
 // /societies/:slug — curated detail first; slug-in-catalog-without-detail
 // falls back to the sparse page; unknown slug 404s.
+// Slugs renamed by data corrections (0015) — 301 so old links/index entries
+// don't 404. Keep tiny; promote to a table if this grows.
+const SLUG_REDIRECTS: Record<string, string> = {
+  "salarpuria-sattva-magnus": "sattva-magnificia",
+};
+
 app.get("/societies/:slug", async (c) => {
   const slug = c.req.param("slug");
+  const renamed = SLUG_REDIRECTS[slug];
+  if (renamed) return c.redirect(`/societies/${renamed}`, 301);
   // The live DB row is authoritative for headline numbers + provenance; the
   // curated bundle (if any) only supplies the rich sections. A slug must exist
   // as a published society to render.
