@@ -392,7 +392,7 @@ export const Submit: FC<{ step1: Step1Data; errors: Errors; siteKey?: string; pr
     <main class="px-5 sm:px-8 py-10 sm:py-16">
       <div class="max-w-narrow mx-auto">
         <SubmitIntro step={1} />
-        <form action="/submit/step1" method="post" class="mt-10 sm:mt-12 grid gap-8 sm:gap-10" novalidate data-step1-form>
+        <form action="/submit/step1" method="post" class="mt-10 sm:mt-12 grid gap-8 sm:gap-10" novalidate data-step1-form data-submit-form>
           <Step1Fields step1={step1} errors={errors} preStatus={preStatus} />
           <Turnstile siteKey={siteKey} error={errors.turnstile} />
 

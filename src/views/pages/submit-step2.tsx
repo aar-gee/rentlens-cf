@@ -334,12 +334,12 @@ export const SubmitStep2A: FC<{ step1: Step1Data; step2: Step2Data; errors: Erro
     <main class="px-5 sm:px-8 py-10 sm:py-16">
       <div class="max-w-narrow mx-auto">
         <SubmitIntro step={2} />
-        <form action="/submit/step2a" method="post" class="mt-10 sm:mt-12 grid gap-12 sm:gap-14" novalidate>
+        <form action="/submit/step2a" method="post" class="mt-10 sm:mt-12 grid gap-12 sm:gap-14" novalidate data-submit-form>
           <Step1Hidden s1={step1} />
           <SectionA s2={step2} errors={errors} />
           <SectionB s2={step2} />
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 pt-2 border-t border-hairline">
-            <a href="/submit" class="text-ink-mute hover:text-ink text-sm font-medium link-u">
+            <a href="/submit" data-clear-saved-form class="text-ink-mute hover:text-ink text-sm font-medium link-u">
               ← Start over
             </a>
             <button
@@ -383,7 +383,7 @@ export const SubmitStep2B: FC<{ step1: Step1Data; step2: Step2Data; errors: Erro
     <main class="px-5 sm:px-8 py-10 sm:py-16">
       <div class="max-w-narrow mx-auto">
         <SubmitIntro step={3} />
-        <form action="/submit/step2b" method="post" class="mt-10 sm:mt-12 grid gap-12 sm:gap-14" novalidate>
+        <form action="/submit/step2b" method="post" class="mt-10 sm:mt-12 grid gap-12 sm:gap-14" novalidate data-submit-form>
           <Step1Hidden s1={step1} />
           <Step2AHidden s2={step2} />
           <SectionC s2={step2} />
@@ -392,7 +392,7 @@ export const SubmitStep2B: FC<{ step1: Step1Data; step2: Step2Data; errors: Erro
           <Turnstile siteKey={siteKey} error={errors.turnstile} />
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 pt-2 border-t border-hairline">
             <div class="flex items-center gap-5">
-              <a href="/submit" class="text-ink-mute hover:text-ink text-sm font-medium link-u">
+              <a href="/submit" data-clear-saved-form class="text-ink-mute hover:text-ink text-sm font-medium link-u">
                 ← Start over
               </a>
               <button

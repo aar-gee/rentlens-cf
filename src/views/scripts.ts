@@ -179,6 +179,129 @@ export const FORM_ERROR_CLEAR_SCRIPT = `
 })();
 `;
 
+// Form persistence across refresh + tab-close: save the submit form's field
+// values to localStorage as the user types, restore them on page load.
+//
+// Storage shape: `{v: 1, t: <epoch_ms>, d: {<name>: <value>, …}}` under key
+// `rentlens_submit_v1`. Versioned so future schema changes can ignore stale
+// payloads. TTL is 7 days; older entries are dropped on the next restore
+// attempt so abandoned forms don't haunt the inbox forever.
+//
+// Saved: every named input across `form[data-submit-form]` EXCEPT:
+//   - cf-turnstile-response (token expires; widget regenerates per page)
+//   - code (the verification code on the inline pre-verify form — too
+//     short-lived + too sensitive to persist)
+//   - id (the pre-verification id in the inline form; cookie tracks the
+//     authoritative session)
+// Restored only into EMPTY fields — server-rendered values (Step 1 errors
+// re-render, Step 3 helpContact pre-fill from step1.email) always win.
+//
+// Cleared when:
+//   - The success page renders (detected via #submit-success-marker)
+//   - The user clicks any [data-clear-saved-form] link (Start over buttons)
+export const FORM_PERSIST_SCRIPT = `
+(function() {
+  var KEY = 'rentlens_submit_v1';
+  var TTL_MS = 7 * 24 * 60 * 60 * 1000;
+  var SKIP_NAMES = {'cf-turnstile-response':1, 'code':1, 'id':1};
+  function readStore() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      if (!parsed || parsed.v !== 1) return null;
+      if (typeof parsed.t === 'number' && (Date.now() - parsed.t) > TTL_MS) {
+        localStorage.removeItem(KEY);
+        return null;
+      }
+      return parsed.d || null;
+    } catch (e) { return null; }
+  }
+  function writeStore(d) {
+    try { localStorage.setItem(KEY, JSON.stringify({v: 1, t: Date.now(), d: d})); } catch (e) {}
+  }
+  function clearStore() {
+    try { localStorage.removeItem(KEY); } catch (e) {}
+  }
+
+  // Save: walk every form[data-submit-form] on the page, extract named
+  // values (incl. hidden inputs like society_slug, mover_canonical),
+  // shallow-merge into the existing store so restores stay sticky across
+  // step transitions where some fields aren't visible.
+  var saveTimer = null;
+  function saveNow() {
+    var forms = document.querySelectorAll('form[data-submit-form]');
+    if (!forms.length) return;
+    var d = readStore() || {};
+    forms.forEach(function(form) {
+      var els = form.elements;
+      for (var i = 0; i < els.length; i++) {
+        var el = els[i];
+        if (!el.name || SKIP_NAMES[el.name]) continue;
+        if (el.type === 'submit' || el.type === 'button') continue;
+        if (el.type === 'checkbox') {
+          d[el.name] = el.checked ? el.value || 'yes' : '';
+        } else if (el.type === 'radio') {
+          if (el.checked) d[el.name] = el.value;
+        } else {
+          d[el.name] = el.value;
+        }
+      }
+    });
+    writeStore(d);
+  }
+  function scheduleSave() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveNow, 350);
+  }
+
+  // Restore: only overwrite EMPTY fields so server-rendered values always
+  // win (422 re-renders, Step 3 pre-fill from step1.email, etc.).
+  function restore() {
+    var d = readStore();
+    if (!d) return;
+    document.querySelectorAll('form[data-submit-form]').forEach(function(form) {
+      Object.keys(d).forEach(function(name) {
+        var val = d[name];
+        if (val == null) return;
+        var els = form.querySelectorAll('[name="' + name + '"]');
+        for (var i = 0; i < els.length; i++) {
+          var el = els[i];
+          if (el.type === 'checkbox') {
+            // Only set when not already in some state by server.
+            if (!el.checked && val) el.checked = true;
+          } else if (el.type === 'radio') {
+            if (el.value === val && !el.checked) el.checked = true;
+          } else {
+            if (!el.value) el.value = val;
+          }
+        }
+      });
+    });
+  }
+
+  function attach() {
+    if (document.getElementById('submit-success-marker')) {
+      clearStore();
+      return;
+    }
+    restore();
+    document.addEventListener('input', scheduleSave);
+    document.addEventListener('change', scheduleSave);
+    document.addEventListener('click', function(e) {
+      var t = e.target.closest ? e.target.closest('[data-clear-saved-form]') : null;
+      if (t) clearStore();
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attach);
+  } else {
+    attach();
+  }
+})();
+`;
+
 // HTMX 4xx swap config: by default HTMX only swaps on 2xx responses and
 // silently discards 4xx/5xx bodies (firing htmx:responseError instead).
 // Several of our endpoints (POST /email/verify-now, POST /verify) return

@@ -64,6 +64,11 @@ export const SubmitSuccess: FC<{ sub: Submission }> = ({ sub }) => (
   >
     <Header />
     <PreviewBanner />
+    {/* Marker read by FORM_PERSIST_SCRIPT to clear the saved-form localStorage
+        entry once a submission has actually landed — so a fresh visit to
+        /submit afterwards starts blank, not pre-filled with the just-sent
+        report. */}
+    <div id="submit-success-marker" hidden />
     <main class="px-5 sm:px-8 py-14 sm:py-24">
       <div class="max-w-narrow mx-auto text-center">
         <div class="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-marigold/15 mb-7">
