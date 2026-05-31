@@ -3,6 +3,13 @@
 // aggregation comes later). societyDetailBySlug returns the curated bundle or
 // null; the route falls back to a sparse page (slug in catalog, no detail) or
 // 404 (unknown slug).
+//
+// Base/headline fields (medians, ranges, provenance, locality, recency, counts)
+// are overlaid from the live DB row via mergeSocietyIntoDetail — the curated
+// bundle now only supplies the rich sections (breakdown, ratings, movers,
+// nearby), which the view gates to resident-provenance societies.
+
+import type { Society } from "./society";
 
 export type TrendDelta = { pct?: number; stable?: boolean; window: string };
 export type BHKMaint = { label: string; value: number };
@@ -1191,4 +1198,36 @@ const REGISTRY: Record<string, () => SocietyDetail> = {
 export function societyDetailBySlug(slug: string): SocietyDetail | null {
   const build = REGISTRY[slug];
   return build ? build() : null;
+}
+
+// mergeSocietyIntoDetail overlays the authoritative live DB base fields onto a
+// curated detail bundle, so the page reflects the catalog (grounded asking
+// rents, honest provenance, corrected locality) instead of the hand-curated
+// placeholders. Rich sections from the bundle are kept; the view shows them
+// only for resident-provenance societies. NULL medians (e.g. villa/3BHK-only
+// societies whose fabricated 2BHK was removed) flow through honestly.
+export function mergeSocietyIntoDetail(detail: SocietyDetail, soc: Society): SocietyDetail {
+  return {
+    ...detail,
+    id: soc.id,
+    slug: soc.slug,
+    name: soc.name,
+    locality: soc.locality,
+    builder: soc.builder,
+    yearBuiltFrom: soc.yearBuiltFrom,
+    yearBuiltTo: soc.yearBuiltTo,
+    totalUnits: soc.totalUnits,
+    description: soc.description,
+    medianRent2BHK: soc.medianRent2BHK,
+    range2BHKLow: soc.range2BHKLow,
+    range2BHKHigh: soc.range2BHKHigh,
+    medianRent3BHK: soc.medianRent3BHK,
+    range3BHKLow: soc.range3BHKLow,
+    range3BHKHigh: soc.range3BHKHigh,
+    reportCount: soc.reportCount,
+    lastUpdated: soc.lastUpdated,
+    confidenceLabel: soc.confidenceLabel,
+    featuredBHK: soc.featuredBHK,
+    provenance: soc.provenance,
+  };
 }

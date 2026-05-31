@@ -16,7 +16,7 @@ import { notesByDate, noteBySlug } from "./data/notes";
 import { joinWaitlist } from "./data/waitlist";
 import { WaitlistInner } from "./views/components/waitlist-form";
 import { robotsTxt, buildSitemap } from "./lib/seo";
-import { societyDetailBySlug } from "./data/society-detail";
+import { societyDetailBySlug, mergeSocietyIntoDetail } from "./data/society-detail";
 import { Contact, ContactSuccess } from "./views/pages/contact";
 import { HowItWorks } from "./views/pages/how-it-works";
 import { Privacy } from "./views/pages/privacy";
@@ -280,11 +280,14 @@ app.get("/featured", async (c) => {
 // falls back to the sparse page; unknown slug 404s.
 app.get("/societies/:slug", async (c) => {
   const slug = c.req.param("slug");
-  const detail = societyDetailBySlug(slug);
-  if (detail) return c.html(<Society detail={detail} />);
+  // The live DB row is authoritative for headline numbers + provenance; the
+  // curated bundle (if any) only supplies the rich sections. A slug must exist
+  // as a published society to render.
   const soc = await getBySlug(c.env.DB, slug);
-  if (soc) return c.html(<SocietySparse soc={soc} />);
-  return c.notFound();
+  if (!soc) return c.notFound();
+  const detail = societyDetailBySlug(slug);
+  if (detail) return c.html(<Society detail={mergeSocietyIntoDetail(detail, soc)} />);
+  return c.html(<SocietySparse soc={soc} />);
 });
 
 // ---- Submit flow ----
