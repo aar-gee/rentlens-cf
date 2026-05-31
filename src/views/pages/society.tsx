@@ -8,7 +8,6 @@ import { Breadcrumb, type BreadcrumbItem } from "../components/breadcrumb";
 import { ContributeCTA } from "../components/contribute-cta";
 import { ShareRow } from "../components/share-row";
 import { WaitlistBox } from "../components/waitlist-form";
-import { SummaryMetricCard, type SummaryMetricProps } from "../components/summary-metric-card";
 import { RentBreakdownTable } from "../components/rent-breakdown-table";
 import { MaintenanceCard, FurnishingPremiumCard, LeaseNormsCard } from "../components/sidebar-cards";
 import { QualitativeTile } from "../components/qualitative-tile";
@@ -99,61 +98,103 @@ const summaryStatsLine = (d: SocietyDetail) =>
     ? "Our estimate · no resident reports yet"
     : `${d.summaryTotal} reports · ${d.selfCount} self · ${d.partialCount} partial · ${d.verifiedCount} verified`;
 
-function summary2BHK(d: SocietyDetail): SummaryMetricProps {
-  const est = isEstimate(d);
-  const p: SummaryMetricProps = {
-    eyebrow: est ? "2 BHK · estimate" : "2 BHK · median",
-    big: d.medianRent2BHK != null ? formatINR(d.medianRent2BHK) : "—",
-    bigSuffix: "/mo",
-    trend: est ? null : d.trend2BHK,
-    confidenceDot: est ? "ink-faint" : "marigold",
-    confidenceLabel: est ? "Our estimate" : "Partially verified",
-  };
-  if (d.range2BHKLow != null && d.range2BHKHigh != null) {
-    p.sub = est
-      ? formatINRRange(d.range2BHKLow, d.range2BHKHigh)
-      : `${formatINRRange(d.range2BHKLow, d.range2BHKHigh)} · ${reportsCountLabel(d.rentBreakdown, "2 BHK")}`;
-  }
-  return p;
+// ---- Per-BHK summary cards (rent + maintenance) ----
+// Bengaluru societies bill maintenance at a single ₹/sq-ft rate applied
+// uniformly across flat sizes — not a different rate per BHK. So we show one
+// rate, plus the monthly figure it works out to for each BHK's typical size
+// (the deposit-in-months equivalent, auto-scaling). 18% GST applies once a
+// flat's maintenance crosses ₹7,500/mo (the RWA-GST threshold). Typical sizes
+// are fixed norms for now; submissions capture sqft, so we infer per society
+// later.
+const SQFT_BY_BHK: Record<string, number> = { "2": 1150, "3": 1600 };
+const MAINT_GST_THRESHOLD = 7500;
+
+// maintPerSqft — the society's single uniform maintenance rate (₹/sq ft / mo),
+// rounded to 0.1. Derived from the 2 BHK maintenance estimate over its typical
+// size, then applied to every flat size. Falls back to the typical figure.
+function maintPerSqft(d: SocietyDetail): number {
+  const base = d.maintenanceByBHK.find((x) => x.label.includes("2 BHK"))?.value ?? d.maintenanceTypical;
+  return Math.round((base / SQFT_BY_BHK["2"]) * 10) / 10;
 }
 
-function summary3BHK(d: SocietyDetail): SummaryMetricProps {
+const BHKRentCard: FC<{
+  d: SocietyDetail;
+  bhk: string;
+  median: number | null;
+  rangeLow: number | null;
+  rangeHigh: number | null;
+}> = ({ d, bhk, median, rangeLow, rangeHigh }) => {
   const est = isEstimate(d);
-  const p: SummaryMetricProps = {
-    eyebrow: est ? "3 BHK · estimate" : "3 BHK · median",
-    big: d.medianRent3BHK != null ? formatINR(d.medianRent3BHK) : "—",
-    bigSuffix: "/mo",
-    trend: est ? null : d.trend3BHK,
-    confidenceDot: est ? "ink-faint" : "success",
-    confidenceLabel: est ? "Our estimate" : "Verified source",
-  };
-  if (d.range3BHKLow != null && d.range3BHKHigh != null) {
-    p.sub = est
-      ? formatINRRange(d.range3BHKLow, d.range3BHKHigh)
-      : `${formatINRRange(d.range3BHKLow, d.range3BHKHigh)} · ${reportsCountLabel(d.rentBreakdown, "3 BHK")}`;
-  }
-  return p;
-}
+  return (
+    <article class="bg-white border border-hairline p-6">
+      <div class="eyebrow mb-2">
+        {bhk} BHK · {est ? "estimate" : "median"}
+      </div>
+      <div class="num text-[36px] font-medium tracking-tighter leading-none">
+        {median != null ? formatINR(median) : "—"}
+        <span class="text-base text-ink-faint">/mo</span>
+      </div>
+      {rangeLow != null && rangeHigh != null ? (
+        <div class="num text-xs text-ink-mute mt-2">{formatINRRange(rangeLow, rangeHigh)} rent</div>
+      ) : null}
+      <div class="hairline my-4" />
+      <div class="flex items-center gap-1.5 text-xs text-ink-mute">
+        <span class="w-1.5 h-1.5 rounded-full bg-ink-faint" />
+        <span class="num">{est ? "Our estimate" : reportsCountLabel(d.rentBreakdown, `${bhk} BHK`)}</span>
+      </div>
+    </article>
+  );
+};
 
-const summaryMaintenance = (d: SocietyDetail): SummaryMetricProps => ({
-  eyebrow: "Maintenance · typical",
-  big: formatINR(d.maintenanceTypical),
-  bigSuffix: "/mo",
-  sub: `${formatINR(d.maintenanceLow)} – ${formatINR(d.maintenanceHigh)} range`,
-  trend: isEstimate(d) ? null : d.trendMaint,
-  confidenceDot: "ink-faint",
-  confidenceLabel: isEstimate(d) ? "Our estimate" : "Across all BHK",
-});
+// MaintenanceCard — one uniform ₹/sq-ft rate, with the monthly it works out to
+// for the society's BHK sizes (and a +GST tag past the ₹7,500 threshold).
+const MaintenanceSummaryCard: FC<{ d: SocietyDetail }> = ({ d }) => {
+  const est = isEstimate(d);
+  const rate = maintPerSqft(d);
+  const examples = Object.keys(SQFT_BY_BHK).map((bhk) => {
+    const sqft = SQFT_BY_BHK[bhk];
+    const monthly = Math.round((rate * sqft) / 100) * 100;
+    return { bhk, sqft, monthly, gst: monthly > MAINT_GST_THRESHOLD };
+  });
+  return (
+    <article class="bg-white border border-hairline p-6">
+      <div class="eyebrow mb-2">Maintenance · {est ? "estimate" : "typical"}</div>
+      <div class="num text-[36px] font-medium tracking-tighter leading-none">
+        ₹{rate.toFixed(1)}
+        <span class="text-base text-ink-faint"> /sq ft</span>
+      </div>
+      <div class={`num text-xs text-ink-mute mt-2${examples.length > 1 ? " cycle-line" : ""}`}>
+        {examples.map((e) => (
+          <span>
+            {e.bhk} BHK (~{e.sqft.toLocaleString("en-IN")} sqft) ≈ {formatINR(e.monthly)}/mo
+            {e.gst ? " +18% GST" : ""}
+          </span>
+        ))}
+      </div>
+      <div class="hairline my-4" />
+      <div class="flex items-center gap-1.5 text-xs text-ink-mute">
+        <span class="w-1.5 h-1.5 rounded-full bg-ink-faint" />
+        <span class="num">{est ? "Our estimate" : "Across all BHK"}</span>
+      </div>
+    </article>
+  );
+};
 
-const summaryDeposit = (d: SocietyDetail): SummaryMetricProps => ({
-  eyebrow: "Deposit · typical",
-  big: d.depositMonths,
-  bigSuffix: " months",
-  sub: d.depositSub,
-  trend: null,
-  confidenceDot: "ink-faint",
-  confidenceLabel: isEstimate(d) ? "Our estimate" : "Self-reported",
-});
+const DepositCard: FC<{ d: SocietyDetail }> = ({ d }) => (
+  <article class="bg-white border border-hairline p-6">
+    <div class="eyebrow mb-2">Deposit · typical</div>
+    <div class="num text-[36px] font-medium tracking-tighter leading-none">
+      {d.depositMonths}
+      <span class="text-base text-ink-faint"> months</span>
+    </div>
+    <div class="num text-xs text-ink-mute mt-2">{d.depositSub}</div>
+    <div class="hairline my-4" />
+    <div class="flex items-center gap-1.5 text-xs text-ink-mute">
+      <span class="w-1.5 h-1.5 rounded-full bg-ink-faint" />
+      <span class="num">{isEstimate(d) ? "Our estimate" : "Self-reported"}</span>
+    </div>
+  </article>
+);
 
 const Arrow: FC = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -240,11 +281,19 @@ const SummarySection: FC<{ d: SocietyDetail }> = ({ d }) => (
         <span class="text-xs text-ink-faint num hidden sm:inline">{summaryStatsLine(d)}</span>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <SummaryMetricCard p={summary2BHK(d)} />
-        <SummaryMetricCard p={summary3BHK(d)} />
-        <SummaryMetricCard p={summaryMaintenance(d)} />
-        <SummaryMetricCard p={summaryDeposit(d)} />
+        {d.medianRent2BHK != null ? (
+          <BHKRentCard d={d} bhk="2" median={d.medianRent2BHK} rangeLow={d.range2BHKLow} rangeHigh={d.range2BHKHigh} />
+        ) : null}
+        {d.medianRent3BHK != null ? (
+          <BHKRentCard d={d} bhk="3" median={d.medianRent3BHK} rangeLow={d.range3BHKLow} rangeHigh={d.range3BHKHigh} />
+        ) : null}
+        <MaintenanceSummaryCard d={d} />
+        <DepositCard d={d} />
       </div>
+      <p class="mt-4 text-xs text-ink-faint leading-relaxed max-w-[680px]">
+        Maintenance is charged at one ₹/sq ft rate across all flats; the monthly amount just scales with your size. 18%
+        GST applies once a flat's maintenance crosses ₹7,500/mo (the RWA threshold).
+      </p>
       <div class="mt-5 flex flex-col sm:flex-row sm:items-center gap-3 bg-parchment-deep/40 border border-hairline p-5">
         <div class="flex items-center gap-3">
           <div class="text-sm">
@@ -327,7 +376,7 @@ const MainInsights: FC<{ d: SocietyDetail }> = ({ d }) => (
         </div>
       </div>
       <aside class="space-y-6">
-        <MaintenanceCard d={d} />
+        <MaintenanceSummaryCard d={d} />
         <FurnishingPremiumCard f={d.furnishingPremium} />
         <LeaseNormsCard norms={d.leaseNorms} />
       </aside>

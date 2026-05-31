@@ -195,6 +195,27 @@ main, header, footer, section { position: relative; z-index: 2; }
 }
 .accent-dot { animation: pulse-dot 2.6s ease-in-out infinite; }
 
+/* Cycling sub-line (maintenance tile): each BHK's monthly shows in turn so the
+   tile stays one line tall and its divider lines up with the sibling tiles.
+   The first child is in normal flow (sets the height); siblings overlay it.
+   Tuned for two items; reduced-motion shows both, stacked. */
+.cycle-line { position: relative; }
+.cycle-line > span {
+  display: block;
+  opacity: 0; /* hidden by default so a delayed span doesn't overlap on load */
+  animation: cycle-line 7s ease-in-out infinite;
+}
+.cycle-line > span:first-child { opacity: 1; } /* first one is visible immediately */
+.cycle-line > span:not(:first-child) { position: absolute; inset: 0; }
+.cycle-line > span:nth-child(2) { animation-delay: 3.5s; }
+@keyframes cycle-line {
+  0%, 45%   { opacity: 1; }
+  55%, 100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cycle-line > span { position: static; opacity: 1; animation: none; }
+}
+
 /* =============================================================
    Interactive primitives
    ============================================================= */
