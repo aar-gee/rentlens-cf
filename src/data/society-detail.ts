@@ -1206,6 +1206,51 @@ export function societyDetailBySlug(slug: string): SocietyDetail | null {
 // placeholders. Rich sections from the bundle are kept; the view shows them
 // only for resident-provenance societies. NULL medians (e.g. villa/3BHK-only
 // societies whose fabricated 2BHK was removed) flow through honestly.
+const emptyRating = (label: string): QualitativeRating => ({ label, descriptor: "", sampleSize: 0, dotColor: "ink-faint" });
+
+// buildEstimateDetail constructs a full SocietyDetail from a live DB row for a
+// society that has NO curated bundle but DOES have grounded (listings-derived)
+// medians — so the 26 non-curated societies render the same honest estimate
+// detail (per-BHK cards, maintenance, deposit, "Our estimate" framing) as the
+// curated ones, instead of the bare "not enough reports" sparse page. The rich
+// resident-only sections (breakdown, ratings, movers, nearby) are empty; the
+// view gates them to resident provenance, so they never render here. maintenance
+// + deposit come from rent_observations (societyRentMeta).
+export function buildEstimateDetail(soc: Society, maintenance: number | null, depositMonths: number | null): SocietyDetail {
+  const maint = maintenance ?? 0;
+  const m2 = soc.medianRent2BHK;
+  const m3 = soc.medianRent3BHK;
+  const useThree = (soc.featuredBHK.includes("3") && m3 != null) || m2 == null;
+  const featuredMedian = (useThree ? m3 : m2) ?? 0;
+  return {
+    id: soc.id, slug: soc.slug, name: soc.name, locality: soc.locality, builder: soc.builder,
+    yearBuiltFrom: soc.yearBuiltFrom, yearBuiltTo: soc.yearBuiltTo, totalUnits: soc.totalUnits,
+    description: soc.description,
+    medianRent2BHK: m2, range2BHKLow: soc.range2BHKLow, range2BHKHigh: soc.range2BHKHigh,
+    medianRent3BHK: m3, range3BHKLow: soc.range3BHKLow, range3BHKHigh: soc.range3BHKHigh,
+    reportCount: soc.reportCount, lastUpdated: soc.lastUpdated, confidenceLabel: soc.confidenceLabel,
+    featuredBHK: soc.featuredBHK, provenance: soc.provenance,
+    nearbyCount: 0, trend2BHK: null, trend3BHK: null, trendMaint: null,
+    depositMonths: depositMonths != null ? `${depositMonths} months` : "—",
+    depositSub: depositMonths != null ? "typical security deposit" : "",
+    totalOutflowEstimate: featuredMedian + maint,
+    totalOutflowBHK: useThree ? "3 BHK" : "2 BHK",
+    maintenanceTypical: maint, maintenanceLow: maint, maintenanceHigh: maint, maintenanceByBHK: [],
+    rentBreakdown: [],
+    furnishingPremium: { unfurnishedBase: 0, semiFurnished: 0, fullyFurnished: 0, pairedReports: 0 },
+    leaseNorms: [],
+    valueForMoney: emptyRating("Value for money"),
+    societyQuality: emptyRating("Society quality"),
+    ownerExperience: emptyRating("Owner experience"),
+    notesSummary: "", notesSampleSize: 0,
+    sourceChannels: [], sourceTotal: 0, sourceInsight: "",
+    movers: [], moversTotal: 0, othersMentioned: 0,
+    nearbySocieties: [],
+    oldestReport: "", latestReport: "",
+    selfCount: 0, partialCount: 0, verifiedCount: 0, summaryTotal: 0,
+  };
+}
+
 export function mergeSocietyIntoDetail(detail: SocietyDetail, soc: Society): SocietyDetail {
   return {
     ...detail,

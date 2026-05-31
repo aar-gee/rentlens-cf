@@ -262,3 +262,23 @@ export async function listPublishedPage(
   const societies = results.slice(0, PAGE_SIZE).map(rowToSociety);
   return { societies, hasMore };
 }
+
+// societyRentMeta returns representative maintenance + deposit for a society
+// from its rent_observations (the most-evidenced row), to populate the estimate
+// detail page for non-curated societies. Nulls when there are no observations.
+export async function societyRentMeta(
+  db: D1Database,
+  slug: string,
+): Promise<{ maintenance: number | null; depositMonths: number | null }> {
+  const row = await db
+    .prepare(
+      `SELECT maintenance_monthly AS m, deposit_months AS d
+         FROM rent_observations
+        WHERE society_slug = ?
+        ORDER BY (maintenance_monthly IS NOT NULL) DESC, listings_basis DESC
+        LIMIT 1`,
+    )
+    .bind(slug)
+    .first<{ m: number | null; d: number | null }>();
+  return { maintenance: row?.m ?? null, depositMonths: row?.d ?? null };
+}

@@ -7,7 +7,7 @@ import { SubmitSuccess } from "./views/pages/submit-success";
 import { SearchResults } from "./views/components/search-results";
 import { AreaResults } from "./views/components/area-results";
 import { MoverResults } from "./views/components/mover-results";
-import { listFeatured, filterFeatured, search, getBySlug, listAll, listPublishedPage, PAGE_SIZE } from "./data/society";
+import { listFeatured, filterFeatured, search, getBySlug, listAll, listPublishedPage, PAGE_SIZE, societyRentMeta } from "./data/society";
 import { homeStats } from "./data/stats";
 import { SocietiesIndex, SocietyCardsFragment } from "./views/pages/societies";
 import { About } from "./views/pages/about";
@@ -16,7 +16,7 @@ import { notesByDate, noteBySlug } from "./data/notes";
 import { joinWaitlist } from "./data/waitlist";
 import { WaitlistInner } from "./views/components/waitlist-form";
 import { robotsTxt, buildSitemap } from "./lib/seo";
-import { societyDetailBySlug, mergeSocietyIntoDetail } from "./data/society-detail";
+import { societyDetailBySlug, mergeSocietyIntoDetail, buildEstimateDetail } from "./data/society-detail";
 import { Contact, ContactSuccess } from "./views/pages/contact";
 import { HowItWorks } from "./views/pages/how-it-works";
 import { Privacy } from "./views/pages/privacy";
@@ -295,6 +295,13 @@ app.get("/societies/:slug", async (c) => {
   if (!soc) return c.notFound();
   const detail = societyDetailBySlug(slug);
   if (detail) return c.html(<Society detail={mergeSocietyIntoDetail(detail, soc)} />);
+  // Non-curated society with grounded medians: render the same honest estimate
+  // detail (per-BHK cards + maintenance/deposit) as curated ones. Only truly
+  // data-less societies fall through to the sparse "contribute" page.
+  if (soc.medianRent2BHK != null || soc.medianRent3BHK != null) {
+    const meta = await societyRentMeta(c.env.DB, slug);
+    return c.html(<Society detail={buildEstimateDetail(soc, meta.maintenance, meta.depositMonths)} />);
+  }
   return c.html(<SocietySparse soc={soc} />);
 });
 
