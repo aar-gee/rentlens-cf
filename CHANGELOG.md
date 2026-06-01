@@ -6,6 +6,19 @@ All notable changes to RentLens are documented here. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Step 1 submit buttons no longer dead after returning from email verification.
+  The verified-state "Use different" control and the pending-state inline
+  code-entry form were each wrapped in their own `<form>` nested inside the
+  outer `<form action="/submit/step1">`. Per HTML5, the inner `</form>`
+  closes the outer form, orphaning the "Continue" and "Submit only minimum
+  data" buttons — clicks did nothing. Helper forms are now declared as
+  siblings of the step1 form, and the inner controls reference them via the
+  `form="..."` attribute.
+- Step 1 email-nudge warning no longer references "forwarding intros" — that
+  feature lives on Step 3 and was meaningless to a user still on Step 1.
+
 ## [0.2.0] — 2026-05-31
 
 ### Added
