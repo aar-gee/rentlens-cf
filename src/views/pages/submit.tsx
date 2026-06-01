@@ -477,8 +477,7 @@ export const Submit: FC<{ step1: Step1Data; errors: Errors; siteKey?: string; pr
             <div class="bg-parchment max-w-md w-[calc(100vw-2rem)] border border-marigold/40 px-6 py-5 grid gap-4">
               <div class="eyebrow text-marigold-deep">/ Heads up</div>
               <div class="text-base text-ink leading-relaxed">
-                You haven't verified your email yet. Verification gives your report more credibility — and we won't
-                forward intros to unverified addresses.
+                You haven't verified your email yet. Verification gives your report more credibility.
               </div>
               <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
                 <button
