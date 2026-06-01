@@ -161,11 +161,13 @@ const EmailVerifyBlock: FC<{ step1: Step1Data; errors: Errors; preStatus: PreSta
             <div class="text-sm text-ink leading-relaxed flex-1">
               Verified <span class="font-medium">{preStatus.email}</span>
             </div>
-            <form method="post" action="/email/clear-verify" class="inline">
-              <button type="submit" class="text-xs text-ink-mute hover:text-ink underline">
-                Use different
-              </button>
-            </form>
+            <button
+              type="submit"
+              form="x-rl-clear-verify"
+              class="text-xs text-ink-mute hover:text-ink underline"
+            >
+              Use different
+            </button>
           </div>
         </div>
       </FieldRow>
@@ -181,19 +183,17 @@ const EmailVerifyBlock: FC<{ step1: Step1Data; errors: Errors; preStatus: PreSta
             We sent a verification link + 6-digit code to{" "}
             <span class="font-medium">{preStatus.email}</span>. Click the link in your inbox, or paste the code below.
           </div>
-          <form
-            hx-post="/verify"
-            hx-target="#email-verify-status"
-            hx-swap="innerHTML"
-            class="flex items-stretch gap-2"
-          >
+          <div class="flex items-stretch gap-2">
             {/* The pre-verification id lives only in the cookie; the server
                 resolves it on POST /verify when `id` is empty by reading the
-                cookie. We post empty here. */}
-            <input type="hidden" name="id" value="" />
+                cookie. We post empty here. Inputs reference the sibling
+                #x-rl-verify-code form (defined outside the step1 form) via the
+                `form` attribute — see the comment on the helper forms above. */}
+            <input type="hidden" name="id" value="" form="x-rl-verify-code" />
             <input
               type="text"
               name="code"
+              form="x-rl-verify-code"
               inputmode="numeric"
               pattern="[0-9]{6}"
               maxlength={6}
@@ -204,11 +204,12 @@ const EmailVerifyBlock: FC<{ step1: Step1Data; errors: Errors; preStatus: PreSta
             />
             <button
               type="submit"
+              form="x-rl-verify-code"
               class="bg-ink text-parchment px-4 py-2 text-xs font-medium tracking-tight hover:bg-ink/90 transition-colors"
             >
               Verify
             </button>
-          </form>
+          </div>
         </div>
       </FieldRow>
     );
@@ -459,6 +460,20 @@ export const Submit: FC<{ step1: Step1Data; errors: Errors; siteKey?: string; pr
     <main class="px-5 sm:px-8 py-10 sm:py-16">
       <div class="max-w-narrow mx-auto">
         <SubmitIntro step={1} />
+        {/* Helper forms placed OUTSIDE the main step1 <form>. The inline
+            "Verify" (pending) + "Use different" (verified) controls reference
+            these via the `form` attribute instead of being wrapped in their
+            own <form>. A nested <form> would be silently dropped by the HTML5
+            parser, and its </form> would close the OUTER step1 form early —
+            orphaning the Step 1 submit buttons so clicks would do nothing. */}
+        <form
+          id="x-rl-verify-code"
+          hx-post="/verify"
+          hx-target="#email-verify-status"
+          hx-swap="innerHTML"
+          hidden
+        />
+        <form id="x-rl-clear-verify" action="/email/clear-verify" method="post" hidden />
         <form action="/submit/step1" method="post" class="mt-10 sm:mt-12 grid gap-8 sm:gap-10" novalidate data-step1-form data-submit-form>
           <Step1Fields step1={step1} errors={errors} preStatus={preStatus} />
           <Turnstile siteKey={siteKey} error={errors.turnstile} />

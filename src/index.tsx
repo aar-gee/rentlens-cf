@@ -533,16 +533,16 @@ function preverifyPendingFragment(email: string, error?: string) {
       ) : (
         <div class="text-xs text-marigold-deep leading-relaxed">Check your inbox, then paste the code below.</div>
       )}
-      <form
-        hx-post="/verify"
-        hx-target="#email-verify-status"
-        hx-swap="innerHTML"
-        class="flex items-stretch gap-2"
-      >
-        <input type="hidden" name="id" value="" />
+      <div class="flex items-stretch gap-2">
+        {/* Inputs reference the sibling #x-rl-verify-code form (rendered
+            outside the outer step1 <form> in Submit). No inner <form> wrapper
+            — nesting one inside the step1 form would silently close the
+            outer form and orphan the Step 1 submit buttons. */}
+        <input type="hidden" name="id" value="" form="x-rl-verify-code" />
         <input
           type="text"
           name="code"
+          form="x-rl-verify-code"
           inputmode="numeric"
           pattern="[0-9]{6}"
           maxlength={6}
@@ -553,11 +553,12 @@ function preverifyPendingFragment(email: string, error?: string) {
         />
         <button
           type="submit"
+          form="x-rl-verify-code"
           class="bg-ink text-parchment px-4 py-2 text-xs font-medium tracking-tight hover:bg-ink/90 transition-colors"
         >
           Verify
         </button>
-      </form>
+      </div>
       {error ? <div class="text-xs text-danger leading-relaxed">{error}</div> : null}
     </>
   );
