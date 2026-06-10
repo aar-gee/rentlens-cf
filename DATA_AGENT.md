@@ -12,11 +12,14 @@ Decision log lives in memory: `seed-trust-decisions.md`. fp epic: `RENT-vuidxkts
 ## Current state (v0.2.0 — shipped to prod 2026-05-31)
 
 rentlens.fyi is **live** with the full seed/trust + honesty work. Quick orientation:
-- **Migration head: `0016`.** (0012 roster, 0013 city, 0014 rent_observations, 0015
-  society corrections, 0016 Magnificia description.)
-- **Builders:** 30 (19 tier-A / 11 tier-B). **Societies:** ~38 published. NOTE prod
-  has ~2 societies beyond the 36-row `seed/societies.csv` (prod-only rows) — **don't
-  assume the seed CSV equals prod; query prod D1 (`--remote`) when counts matter.**
+- **Migration head: `0017`.** (0012 roster, 0013 city, 0014 rent_observations, 0015
+  society corrections, 0016 Magnificia description, 0017 removed 2 junk contributor
+  societies.)
+- **Builders:** 30 (19 tier-A / 11 tier-B). **Societies:** 36 published, all
+  `provenance='estimated'`. Two prod-only contributor rows (mc-fortune,
+  millennium-habitat) were removed in 0017. **Still: don't assume `seed/societies.csv`
+  equals prod — contributor societies enter via the submit flow; query prod D1
+  (`--remote`) when counts matter, and audit new contributor rows for quality.**
 - All grounded societies are `provenance='estimated'`; promotion to `resident` is wired
   via admin publish (≥3 reports). Detail pages are D1-backed for every society.
 - **Next data task:** the **Google-CSE discovery feeder** (RENT-dqfzfbeq) — automate
@@ -64,7 +67,8 @@ Generators (all build-time, NOT shipped to the Worker):
 - `seed/gen-rent-observations.ts` ← `seed/rent-observations.csv` → `0014_rent_observations.sql`
 - Hand-written corrections (no generator): `0015_society_corrections.sql` (rename/
   relocate + grounded rent for the 2 mis-seeded societies) and
-  `0016_magnificia_description.sql`. Migration head is **`0016`** — the next is `0017`.
+  `0016_magnificia_description.sql`, and `0017_remove_junk_societies.sql` (removed 2
+  low-quality contributor societies + footprint). Migration head is **`0017`** — next is `0018`.
 
 ---
 

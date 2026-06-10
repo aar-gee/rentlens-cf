@@ -19,6 +19,14 @@ All notable changes to RentLens are documented here. Format follows
 - Step 1 email-nudge warning no longer references "forwarding intros" — that
   feature lives on Step 3 and was meaningless to a user still on Step 1.
 
+### Removed
+
+- Two low-quality contributor-created societies — MC FORTUNE and Millennium
+  Habitat — and their full footprint: pending reports, pending-society rows, and
+  the orphan "MC Builders" builder (migration 0017). They were thin, data-less
+  pages flagged in Search Console (discovered-not-indexed). The live catalog is
+  now 36 societies, all `provenance='estimated'`.
+
 ## [0.2.0] — 2026-05-31
 
 ### Added
