@@ -46,6 +46,7 @@ put() {
 }
 
 echo "Pushing secrets to the '${LABEL}' Worker…"
+put ADMIN_PREFIX     "${ADMIN_PREFIX:-}"
 put ADMIN_USER         "${ADMIN_USER:-}"
 put ADMIN_PASS         "${ADMIN_PASS:-}"
 put NTFY_TOPIC         "${NTFY_TOPIC:-}"

@@ -3,12 +3,22 @@
 // every admin route 404s — the admin is disabled and not discoverable.
 import type { MiddlewareHandler } from "hono";
 
-// Obscure path segment all admin routes mount under. NOT the security
-// boundary (auth is) — it just keeps the admin off opportunistic /admin/ scans.
-export const ADMIN_PREFIX = "/x-a9c2d27eab89";
+// The admin URL prefix is provided per-deployment via the ADMIN_PREFIX secret
+// (env), never hardcoded, so the public repo doesn't disclose it. It is an
+// obscurity layer, NOT the security boundary — the Basic Auth below is. Admin is
+// unreachable when ADMIN_PREFIX is unset (the dispatcher in index.tsx won't
+// forward to it). Resolved per request via setAdminPrefix(); safe as a module
+// value because every request in a given deployment sees the same ADMIN_PREFIX.
+let resolvedPrefix = "";
 
-// adminHref prefixes a path with ADMIN_PREFIX (single source of truth).
-export const adminHref = (path: string): string => ADMIN_PREFIX + (path.startsWith("/") ? path : "/" + path);
+// setAdminPrefix is called by adminAuth at the start of every admin request,
+// before any view renders, so adminHref() below builds correctly-prefixed links.
+export function setAdminPrefix(prefix: string): void {
+  resolvedPrefix = prefix;
+}
+
+// adminHref prefixes a path with the resolved admin prefix (single source of truth).
+export const adminHref = (path: string): string => resolvedPrefix + (path.startsWith("/") ? path : "/" + path);
 
 // constantTimeEqual avoids leaking length/content via timing.
 function constantTimeEqual(a: string, b: string): boolean {
@@ -32,7 +42,7 @@ function parseBasic(header: string): { user: string; pass: string } | null {
   return { user: decoded.slice(0, idx), pass: decoded.slice(idx + 1) };
 }
 
-type AdminEnv = { ADMIN_USER?: string; ADMIN_PASS?: string };
+type AdminEnv = { ADMIN_USER?: string; ADMIN_PASS?: string; ADMIN_PREFIX?: string };
 
 // adminAuth: 404 when credentials are unconfigured (admin disabled); 401 with
 // a Basic challenge on missing/wrong creds; otherwise stamps noindex + sets the
@@ -41,6 +51,9 @@ export const adminAuth: MiddlewareHandler<{
   Bindings: AdminEnv;
   Variables: { adminUser: string };
 }> = async (c, next) => {
+  // Make the resolved prefix available to adminHref() for this request's render.
+  setAdminPrefix(c.env.ADMIN_PREFIX ?? "");
+
   const wantUser = c.env.ADMIN_USER;
   const wantPass = c.env.ADMIN_PASS;
   if (!wantUser || !wantPass) return c.notFound();

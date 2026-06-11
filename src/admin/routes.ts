@@ -40,6 +40,7 @@ import { RESIDENT_THRESHOLD } from "../data/aggregate";
 
 type AdminBindings = {
   DB: D1Database;
+  ADMIN_PREFIX?: string;
   ADMIN_USER?: string;
   ADMIN_PASS?: string;
   PROOFS?: R2Bucket;

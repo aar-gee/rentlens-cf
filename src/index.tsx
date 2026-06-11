@@ -27,7 +27,6 @@ import { insertContact } from "./data/contact";
 import { emptyContact, parseContact, validateContact } from "./lib/contact";
 import { notifyContact, notifySubmission } from "./lib/notify";
 import { verifyTurnstile, TURNSTILE_ERROR } from "./lib/turnstile";
-import { ADMIN_PREFIX } from "./admin/auth";
 import { adminApp } from "./admin/routes";
 import { newSubmission, getSubmissionById, getSubmissionForVerify } from "./data/submission";
 import {
@@ -75,6 +74,10 @@ export type Bindings = {
   // Turnstile anti-spam (no-op when unset: widget hidden + verify passes).
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET?: string;
+  // Admin URL prefix (secret, env-provided so the public repo never discloses
+  // it). Obscurity only; the boundary is Basic Auth. Admin is unreachable when
+  // unset (the dispatcher below won't forward to adminApp).
+  ADMIN_PREFIX?: string;
   // Admin basic-auth (Phase 6 secrets; admin 404s entirely when unset).
   ADMIN_USER?: string;
   ADMIN_PASS?: string;
@@ -205,9 +208,34 @@ async function respondAfterPersist(
 // ADMIN_PREFIX + "/"); no public route depends on the trailing-slash distinction.
 const app = new Hono<{ Bindings: Bindings }>({ strict: false });
 
-// Admin moderation — mounted under the obscure prefix, behind basic-auth.
-// 404s entirely when ADMIN_USER/ADMIN_PASS aren't configured.
-app.route(ADMIN_PREFIX, adminApp);
+// Security headers — additive hardening on every response (no behavior change).
+// Registered first so it also wraps admin responses. CSP is deliberately omitted
+// here: a correct policy needs nonces/hashes for the inline scripts and an
+// allowlist for htmx (unpkg), Turnstile, and the Cloudflare challenge frame —
+// introduce it report-only first (see SECURITY_AUDIT.md F6).
+app.use(async (c, next) => {
+  await next();
+  c.header("X-Content-Type-Options", "nosniff");
+  c.header("Referrer-Policy", "strict-origin-when-cross-origin");
+  c.header("X-Frame-Options", "SAMEORIGIN");
+});
+
+// Admin moderation — mounted under a secret, env-provided prefix (ADMIN_PREFIX),
+// resolved per request because Workers only expose env at request time. The
+// prefix is an obscurity layer, not the security boundary (Basic Auth in
+// adminAuth is); admin is unreachable when ADMIN_PREFIX is unset. Registered
+// before the public routes so it can intercept matching paths and forward them
+// to adminApp with the prefix stripped.
+app.use(async (c, next) => {
+  const prefix = c.env.ADMIN_PREFIX;
+  if (!prefix) return next();
+  const path = c.req.path;
+  if (path !== prefix && !path.startsWith(prefix + "/")) return next();
+  const rest = path.slice(prefix.length) || "/";
+  const url = new URL(c.req.url);
+  url.pathname = rest;
+  return adminApp.fetch(new Request(url.toString(), c.req.raw), c.env, c.executionCtx);
+});
 
 // Homepage — featured (most-reported) societies + autocomplete search + filters.
 app.get("/", async (c) => {
