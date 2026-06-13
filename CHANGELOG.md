@@ -6,6 +6,20 @@ All notable changes to RentLens are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+
+- Long-tail SEO on society pages: keyword-bearing `<title>`
+  (`{name} rent: 2 & 3 BHK, {locality} — RentLens`), a keyworded summary
+  heading, and `FAQPage` JSON-LD answering the queries renters actually type
+  (validated via Google autocomplete) — per-BHK rent, maintenance charges, and
+  deposit. Includes an honest *negative* answer for absent inventory ("Is there
+  a 1 BHK for rent in {name}?" → these premium societies were built around 2/3
+  BHK, so 1 BHK is rare-to-nonexistent), which the listing portals can't give
+  and which is eligible for Google AI Overviews / FAQ rich results. All wording
+  reads off provenance so estimates never read as resident-reported. The
+  maintenance Q is omitted when a society's derived ₹/sq-ft is implausible
+  (> ₹12), so we never publish a wrong figure into structured data.
+
 ### Fixed
 
 - Step 1 submit buttons no longer dead after returning from email verification.

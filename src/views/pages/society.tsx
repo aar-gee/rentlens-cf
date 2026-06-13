@@ -23,9 +23,101 @@ import { recentTime } from "../../lib/relative-time";
 
 const HOST = "https://rentlens.fyi";
 
-// schema.org Place payload — JSON.stringify gives correct escaping.
+// bhkLabel — which BHK configs we carry headline rent for, as a compact label
+// for titles/meta ("2 & 3 BHK"). Drives keyword-bearing <title>s that match the
+// long-tails renters actually type ("{society} rent 2 bhk").
+function bhkLabel(d: SocietyDetail): string {
+  const has2 = d.medianRent2BHK != null;
+  const has3 = d.medianRent3BHK != null;
+  if (has2 && has3) return "2 & 3 BHK";
+  if (has2) return "2 BHK";
+  if (has3) return "3 BHK";
+  return "";
+}
+
+// societyTitle — keyword-bearing <title>. Kept near ~60 chars so Google keeps
+// the meaningful tail ("rent: 2 & 3 BHK, {locality}") instead of truncating it.
+function societyTitle(d: SocietyDetail): string {
+  const b = bhkLabel(d);
+  const core = b ? `${d.name} rent: ${b}, ${d.locality}` : `${d.name} rent, ${d.locality}`;
+  return `${core} — RentLens`;
+}
+
+// faqLD — honest FAQPage entries targeting confirmed long-tails: per-BHK rent,
+// the 1 BHK *negative* answer (older premium societies were built around 2/3
+// BHK, so 1 BHK stock is rare-to-nonexistent — a true answer the listing
+// portals can't give), maintenance charges, and deposit. Wording reads off
+// provenance so we never overstate (CLAUDE.md §2 / honesty contract): estimates
+// say "our estimate"; resident data says "residents report".
+function faqLD(d: SocietyDetail) {
+  const est = (d.provenance ?? "seed") !== "resident";
+  const src = est ? "Our estimate is" : "Residents report";
+  const tail = est
+    ? " These are early estimates, not asking prices — no resident reports yet, so the figure may move as real reports land."
+    : "";
+  const qa: { q: string; a: string }[] = [];
+
+  if (d.medianRent2BHK != null) {
+    const r = d.range2BHKLow != null && d.range2BHKHigh != null ? ` (typically ${formatINRRange(d.range2BHKLow, d.range2BHKHigh)})` : "";
+    qa.push({
+      q: `What is the rent for a 2 BHK in ${d.name}?`,
+      a: `${src} around ${formatINR(d.medianRent2BHK)}/month for a 2 BHK at ${d.name}, ${d.locality}${r}.${tail}`,
+    });
+  }
+  if (d.medianRent3BHK != null) {
+    const r = d.range3BHKLow != null && d.range3BHKHigh != null ? ` (typically ${formatINRRange(d.range3BHKLow, d.range3BHKHigh)})` : "";
+    qa.push({
+      q: `What is the rent for a 3 BHK in ${d.name}?`,
+      a: `${src} around ${formatINR(d.medianRent3BHK)}/month for a 3 BHK at ${d.name}, ${d.locality}${r}.${tail}`,
+    });
+  }
+
+  // Honest negative — captures "1 BHK rent in {society}" by answering truthfully.
+  qa.push({
+    q: `Is there a 1 BHK for rent in ${d.name}?`,
+    a: `${d.name} is built around 2 and 3 BHK family flats. 1 BHK units are rare to nonexistent in premium societies of this era, so you are unlikely to find a 1 BHK to rent here.`,
+  });
+
+  // Maintenance — confirmed query "{society} maintenance charges". Guard against
+  // the inflated ₹/sq-ft some grounded-estimate societies derive from sparse
+  // rent_observations (data bug owned by the data agent): Bengaluru maintenance
+  // tops out ~₹7-8/sq ft, so anything above ₹12 is junk. We OMIT the question
+  // rather than emit a wrong number into structured data (Google also requires
+  // FAQ markup to match on-page content; omitting is safe, mismatching is not).
+  const rate = maintPerSqft(d);
+  if (rate > 0 && rate <= 12) {
+    const ex = Object.keys(SQFT_BY_BHK).map((bhk) => {
+      const monthly = Math.round((rate * SQFT_BY_BHK[bhk]) / 100) * 100;
+      return `about ${formatINR(monthly)}/mo for a ${bhk} BHK${monthly > MAINT_GST_THRESHOLD ? " (+18% GST)" : ""}`;
+    });
+    qa.push({
+      q: `What are the maintenance charges at ${d.name}?`,
+      a: `Maintenance at ${d.name} is ${est ? "estimated at" : "about"} ₹${rate.toFixed(1)} per sq ft per month — ${ex.join(", ")}. 18% GST applies once a flat's maintenance crosses ₹7,500/month.`,
+    });
+  }
+
+  // Deposit — confirmed query "{society} deposit".
+  qa.push({
+    q: `How much deposit is needed to rent at ${d.name}?`,
+    a: `A deposit of ${d.depositMonths} months' rent is typical at ${d.name} (${d.depositSub}).`,
+  });
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: qa.map((x) => ({
+      "@type": "Question",
+      name: x.q,
+      acceptedAnswer: { "@type": "Answer", text: x.a },
+    })),
+  };
+}
+
+// schema.org payload: a Place describing the society + a FAQPage of honest,
+// long-tail Q&A. Emitted as a JSON-LD array in one <script> (Google accepts
+// multiple top-level objects this way). JSON.stringify gives correct escaping.
 function societyJSONLD(d: SocietyDetail): string {
-  return JSON.stringify({
+  const place = {
     "@context": "https://schema.org",
     "@type": "Place",
     name: d.name,
@@ -38,16 +130,19 @@ function societyJSONLD(d: SocietyDetail): string {
     },
     url: `${HOST}/societies/${d.slug}`,
     isAccessibleForFree: true,
-  });
+  };
+  return JSON.stringify([place, faqLD(d)]);
 }
 
 function societyMeta(d: SocietyDetail): Meta {
   const isEst = (d.provenance ?? "seed") !== "resident";
+  const b = bhkLabel(d);
+  const cfg = b ? `${b} ` : "";
   return {
-    title: `${d.name} — RentLens`,
+    title: societyTitle(d),
     description: isEst
-      ? `Our early estimate of rent, maintenance, and deposit for ${d.name}, ${d.locality}. Help make it real — add what you actually pay.`
-      : `Real rent, maintenance, and deposit data for ${d.name}, ${d.locality}. Reported by ${d.summaryTotal} residents.`,
+      ? `Our resident-estimated rent for ${cfg}flats at ${d.name}, ${d.locality}, Bengaluru — plus maintenance and deposit. What people actually pay, not asking prices. Help make it real.`
+      : `Real resident-reported rent for ${cfg}flats at ${d.name}, ${d.locality}, Bengaluru — plus maintenance and deposit. Reported by ${d.summaryTotal} residents.`,
     path: `/societies/${d.slug}`,
     ogType: "article",
     jsonLd: societyJSONLD(d),
@@ -56,8 +151,8 @@ function societyMeta(d: SocietyDetail): Meta {
 
 function societySparseMeta(soc: SocietyRecord): Meta {
   return {
-    title: `${soc.name} — RentLens`,
-    description: `Reporting in progress for ${soc.name}, ${soc.locality}. Contribute your rent to unlock the breakdown.`,
+    title: `${soc.name} rent, ${soc.locality} — RentLens`,
+    description: `Resident-reported rent for ${soc.name}, ${soc.locality}, Bengaluru is in progress. Add what you pay to unlock the 2 & 3 BHK breakdown, maintenance, and deposit.`,
     path: `/societies/${soc.slug}`,
     ogType: "article",
   };
@@ -275,7 +370,9 @@ const SummarySection: FC<{ d: SocietyDetail }> = ({ d }) => (
         <div>
           <div class="eyebrow mb-2">{isEstimate(d) ? "/ At a glance · our estimate" : "/ At a glance · last 12 months"}</div>
           <h2 class="display text-2xl sm:text-3xl font-medium tracking-tighter">
-            {isEstimate(d) ? "What we estimate residents pay." : "What residents pay."}
+            {isEstimate(d)
+              ? `What we estimate renters pay at ${d.name}, ${d.locality}.`
+              : `What residents pay to rent at ${d.name}, ${d.locality}.`}
           </h2>
         </div>
         <span class="text-xs text-ink-faint num hidden sm:inline">{summaryStatsLine(d)}</span>
