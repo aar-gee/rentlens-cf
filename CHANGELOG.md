@@ -8,6 +8,13 @@ All notable changes to RentLens are documented here. Format follows
 
 ### Added
 
+- Indexable locality landing pages at `/societies/area/{slug}` (e.g.
+  `/societies/area/whitefield`) targeting "2 & 3 BHK rent in {locality}"
+  long-tails: keyworded `<title>`/H1, locality-scoped `CollectionPage` JSON-LD,
+  and a filtered society grid. Added to `sitemap.xml`, and the directory's area
+  filter chips now link to these pages (internal links so they get crawled)
+  instead of the `?area=` query form (which canonicalizes to `/societies`, so
+  no duplicate content). Unknown locality slugs 404.
 - Long-tail SEO on society pages: keyword-bearing `<title>`
   (`{name} rent: 2 & 3 BHK, {locality} — RentLens`), a keyworded summary
   heading, and `FAQPage` JSON-LD answering the queries renters actually type

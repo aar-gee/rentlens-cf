@@ -7,6 +7,7 @@ import { Footer } from "../components/footer";
 import { SocietyCard } from "../components/society-card";
 import { AddSocietyCard } from "../components/add-society-card";
 import { ContributeCTA } from "../components/contribute-cta";
+import { localitySlug } from "../../lib/seo";
 
 const fmt = (n: number) => n.toLocaleString("en-IN");
 
@@ -36,20 +37,53 @@ function societiesJSONLD(societies: Society[]): string {
   });
 }
 
-const IntroSection: FC<{ stats: HomeStats }> = ({ stats }) => (
-  <section class="px-5 sm:px-8 pt-14 sm:pt-20 pb-8 sm:pb-10">
-    <div class="max-w-wide mx-auto">
-      <div class="eyebrow mb-3">/ Directory · Bengaluru</div>
-      <h1 class="display text-3xl sm:text-4xl md:text-5xl font-medium tracking-tighter max-w-[760px]">
-        Every society we track, in one place.
-      </h1>
-      <p class="mt-5 text-base sm:text-lg text-ink-mute max-w-[620px] leading-relaxed">
-        Estimates across {fmt(stats.societies)} societies in {fmt(stats.areas)} Bengaluru localities, with{" "}
-        {fmt(stats.actualPoints)} real resident reports in so far. Don't see yours? Add it in sixty seconds.
-      </p>
-    </div>
-  </section>
-);
+const IntroSection: FC<{ stats: HomeStats; locality?: { name: string; count: number } }> = ({ stats, locality }) =>
+  locality ? (
+    <section class="px-5 sm:px-8 pt-14 sm:pt-20 pb-8 sm:pb-10">
+      <div class="max-w-wide mx-auto">
+        <div class="eyebrow mb-3">/ Rent · {locality.name}, Bengaluru</div>
+        <h1 class="display text-3xl sm:text-4xl md:text-5xl font-medium tracking-tighter max-w-[760px]">
+          Rent in {locality.name}, Bengaluru.
+        </h1>
+        <p class="mt-5 text-base sm:text-lg text-ink-mute max-w-[620px] leading-relaxed">
+          What residents actually pay to rent 2 and 3 BHK flats across {fmt(locality.count)}{" "}
+          {locality.count === 1 ? "society" : "societies"} in {locality.name} — real numbers, not asking prices. Don't
+          see yours? Add it in sixty seconds.
+        </p>
+      </div>
+    </section>
+  ) : (
+    <section class="px-5 sm:px-8 pt-14 sm:pt-20 pb-8 sm:pb-10">
+      <div class="max-w-wide mx-auto">
+        <div class="eyebrow mb-3">/ Directory · Bengaluru</div>
+        <h1 class="display text-3xl sm:text-4xl md:text-5xl font-medium tracking-tighter max-w-[760px]">
+          Every society we track, in one place.
+        </h1>
+        <p class="mt-5 text-base sm:text-lg text-ink-mute max-w-[620px] leading-relaxed">
+          Estimates across {fmt(stats.societies)} societies in {fmt(stats.areas)} Bengaluru localities, with{" "}
+          {fmt(stats.actualPoints)} real resident reports in so far. Don't see yours? Add it in sixty seconds.
+        </p>
+      </div>
+    </section>
+  );
+
+// localityJSONLD — CollectionPage + ItemList scoped to one locality's societies,
+// so the landing page reads as a browseable rent index for that area.
+function localityJSONLD(name: string, slug: string, societies: Society[]): string {
+  const items = societies.slice(0, JSONLD_CAP).map((s, i) => ({
+    "@type": "ListItem",
+    position: i + 1,
+    url: `https://rentlens.fyi/societies/${s.slug}`,
+    name: s.name,
+  }));
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: `Rent in ${name}, Bengaluru`,
+    url: `https://rentlens.fyi/societies/area/${slug}`,
+    mainEntity: { "@type": "ItemList", numberOfItems: societies.length, itemListElement: items },
+  });
+}
 
 // BrowseSearch — spelling-tolerant search box on the directory page. Same
 // HTMX autocomplete as the homepage hero (GET /search -> SearchResults dropdown,
@@ -95,7 +129,7 @@ const AreaFilter: FC<{ areas: { locality: string; count: number }[]; active: str
         All
       </a>
       {areas.map((a) => (
-        <a href={`/societies?area=${encodeURIComponent(a.locality)}`} class={chipClass(active === a.locality)}>
+        <a href={`/societies/area/${localitySlug(a.locality)}`} class={chipClass(active === a.locality)}>
           {a.locality} <span class={active === a.locality ? "text-parchment/70" : "text-ink-faint"}>{a.count}</span>
         </a>
       ))}
@@ -125,17 +159,22 @@ const Grid: FC<{ societies: Society[]; showAdd: boolean }> = ({ societies, showA
 // Pagination — classic Prev / page-indicator / Next, preserving the active area
 // filter. Plain server-rendered links (full page nav): robust, no JS, no scroll
 // jank. Hidden when there's only one page.
-const pageHref = (page: number, area: string) =>
-  `/societies?page=${page}${area ? `&area=${encodeURIComponent(area)}` : ""}`;
+// pageHref — on a locality landing page (/societies/area/{slug}) keep the
+// canonical path and only add ?page=N past page 1; otherwise the directory's
+// query-param form.
+const pageHref = (page: number, area: string, locSlug?: string) =>
+  locSlug
+    ? `/societies/area/${locSlug}${page > 1 ? `?page=${page}` : ""}`
+    : `/societies?page=${page}${area ? `&area=${encodeURIComponent(area)}` : ""}`;
 const PAGER_ON = "num text-xs tracking-[0.08em] uppercase px-4 py-2 border border-hairline hover:border-ink transition-colors no-underline text-ink";
 const PAGER_OFF = "num text-xs tracking-[0.08em] uppercase px-4 py-2 border border-hairline text-ink-faint/40 cursor-default select-none";
-const Pagination: FC<{ page: number; totalPages: number; area: string }> = ({ page, totalPages, area }) => {
+const Pagination: FC<{ page: number; totalPages: number; area: string; locSlug?: string }> = ({ page, totalPages, area, locSlug }) => {
   if (totalPages <= 1) return <></>;
   return (
     <section class="px-5 sm:px-8 pb-16 sm:pb-20">
       <div class="max-w-wide mx-auto flex items-center justify-center gap-5 sm:gap-8">
         {page > 1 ? (
-          <a href={pageHref(page - 1, area)} class={PAGER_ON}>
+          <a href={pageHref(page - 1, area, locSlug)} class={PAGER_ON}>
             ← Prev
           </a>
         ) : (
@@ -145,7 +184,7 @@ const Pagination: FC<{ page: number; totalPages: number; area: string }> = ({ pa
           Page {page} of {totalPages}
         </span>
         {page < totalPages ? (
-          <a href={pageHref(page + 1, area)} class={PAGER_ON}>
+          <a href={pageHref(page + 1, area, locSlug)} class={PAGER_ON}>
             Next →
           </a>
         ) : (
@@ -163,27 +202,44 @@ export const SocietiesIndex: FC<{
   area: string;
   areas: { locality: string; count: number }[];
   stats: HomeStats;
-}> = ({ societies, page, totalPages, area, areas, stats }) => (
-  <Layout
-    meta={{
-      title: area ? `Societies in ${area} — RentLens` : "All societies — RentLens",
-      description: `Browse resident-reported rent, maintenance, and deposit data across ${fmt(
-        stats.societies,
-      )} apartment societies in Bengaluru. Real numbers from people who live there.`,
-      path: "/societies",
-      ogType: "website",
-      jsonLd: societiesJSONLD(societies),
-    }}
-  >
-    <Header />
-    <main>
-      <IntroSection stats={stats} />
-      <BrowseSearch />
-      <AreaFilter areas={areas} active={area} />
-      <Grid societies={societies} showAdd={page === 1 && area === ""} />
-      <Pagination page={page} totalPages={totalPages} area={area} />
-      <ContributeCTA stats={stats} />
-    </main>
-    <Footer />
-  </Layout>
-);
+  // When set, this is a dedicated, indexable locality landing page
+  // (/societies/area/{slug}) rather than the directory filtered via ?area=.
+  localityName?: string;
+}> = ({ societies, page, totalPages, area, areas, stats, localityName }) => {
+  const isLocality = !!localityName;
+  const slug = localityName ? localitySlug(localityName) : "";
+  const localityCount = localityName ? (areas.find((a) => a.locality === localityName)?.count ?? societies.length) : 0;
+  const meta = isLocality
+    ? {
+        title: `2 & 3 BHK rent in ${localityName}, Bengaluru — RentLens`,
+        description: `Resident-estimated 2 & 3 BHK rent, maintenance, and deposit across ${fmt(
+          localityCount,
+        )} premium societies in ${localityName}, Bengaluru. What people actually pay, not asking prices.`,
+        path: `/societies/area/${slug}`,
+        ogType: "website",
+        jsonLd: localityJSONLD(localityName!, slug, societies),
+      }
+    : {
+        title: "All societies — RentLens",
+        description: `Browse resident-reported rent, maintenance, and deposit data across ${fmt(
+          stats.societies,
+        )} apartment societies in Bengaluru. Real numbers from people who live there.`,
+        path: "/societies",
+        ogType: "website",
+        jsonLd: societiesJSONLD(societies),
+      };
+  return (
+    <Layout meta={meta}>
+      <Header />
+      <main>
+        <IntroSection stats={stats} locality={isLocality ? { name: localityName!, count: localityCount } : undefined} />
+        <BrowseSearch />
+        <AreaFilter areas={areas} active={isLocality ? localityName! : area} />
+        <Grid societies={societies} showAdd={!isLocality && page === 1 && area === ""} />
+        <Pagination page={page} totalPages={totalPages} area={area} locSlug={isLocality ? slug : undefined} />
+        <ContributeCTA stats={stats} />
+      </main>
+      <Footer />
+    </Layout>
+  );
+};

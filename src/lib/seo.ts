@@ -9,6 +9,18 @@
 
 export const CANONICAL_HOST = "rentlens.fyi";
 
+// localitySlug — kebab-case a locality display name for /societies/area/{slug}
+// URLs ("Sarjapur Road" -> "sarjapur-road", "HSR Layout" -> "hsr-layout").
+// Stable and collision-free across our canonical areas; the route reverses it
+// by slugifying each DB locality and matching, so there's no separate map to
+// keep in sync.
+export function localitySlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 // isIndexableOrigin — true only for https://rentlens.fyi (with or without a
 // trailing slash already stripped by the caller). Everything else is staging,
 // local, or a preview and must not be indexed.
@@ -93,6 +105,7 @@ export function buildSitemap(
   origin: string,
   societies: SitemapSociety[],
   entries: SitemapEntry[] = [],
+  localitySlugs: string[] = [],
 ): string {
   const urls: string[] = [];
   for (const r of STATIC_ROUTES) {
@@ -101,6 +114,17 @@ export function buildSitemap(
         `    <loc>${xmlEscape(origin + r.path)}</loc>\n` +
         `    <changefreq>${r.changefreq}</changefreq>\n` +
         `    <priority>${r.priority}</priority>\n` +
+        `  </url>`,
+    );
+  }
+  // Locality landing pages (/societies/area/{slug}) — real, keyworded index
+  // pages, so they rank alongside society pages (priority 0.8, weekly).
+  for (const slug of localitySlugs) {
+    urls.push(
+      `  <url>\n` +
+        `    <loc>${xmlEscape(`${origin}/societies/area/${slug}`)}</loc>\n` +
+        `    <changefreq>weekly</changefreq>\n` +
+        `    <priority>0.8</priority>\n` +
         `  </url>`,
     );
   }

@@ -15,7 +15,7 @@ import { NotesIndex, NoteArticle } from "./views/pages/notes";
 import { notesByDate, noteBySlug } from "./data/notes";
 import { joinWaitlist } from "./data/waitlist";
 import { WaitlistInner } from "./views/components/waitlist-form";
-import { robotsTxt, buildSitemap } from "./lib/seo";
+import { robotsTxt, buildSitemap, localitySlug } from "./lib/seo";
 import { societyDetailBySlug, mergeSocietyIntoDetail, buildEstimateDetail } from "./data/society-detail";
 import { Contact, ContactSuccess } from "./views/pages/contact";
 import { HowItWorks } from "./views/pages/how-it-works";
@@ -266,6 +266,38 @@ app.get("/societies", async (c) => {
       area={area}
       areas={areas}
       stats={stats}
+    />,
+  );
+});
+
+// /societies/area/:slug — indexable, keyworded locality landing page (distinct
+// from the directory's ?area= filter, which canonicalizes to /societies). The
+// slug is reversed by matching against DB localities, so there's no map to keep
+// in sync; an unknown slug 404s. Registered before /societies/:slug so the
+// extra path segment routes here, not to the society-detail handler.
+app.get("/societies/area/:slug", async (c) => {
+  const slug = c.req.param("slug");
+  const localities = await listLocalities(c.env.DB);
+  const match = localities.find((l) => localitySlug(l.locality) === slug);
+  if (!match) return c.notFound();
+  const area = match.locality;
+  const page = Math.max(1, parseInt(c.req.query("page") ?? "1", 10) || 1);
+  const offset = (page - 1) * PAGE_SIZE;
+  const [pageData, total, stats] = await Promise.all([
+    listPublishedPage(c.env.DB, offset, area),
+    countPublished(c.env.DB, area),
+    homeStats(c.env.DB),
+  ]);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  return c.html(
+    <SocietiesIndex
+      societies={pageData.societies}
+      page={page}
+      totalPages={totalPages}
+      area={area}
+      areas={localities}
+      stats={stats}
+      localityName={area}
     />,
   );
 });
@@ -936,11 +968,12 @@ app.get("/robots.txt", (c) => {
 
 app.get("/sitemap.xml", async (c) => {
   const origin = new URL(c.req.url).origin;
-  const societies = await listAll(c.env.DB);
+  const [societies, localities] = await Promise.all([listAll(c.env.DB), listLocalities(c.env.DB)]);
   const xml = buildSitemap(
     origin,
     societies.map((s) => ({ slug: s.slug, lastUpdated: s.lastUpdated })),
     notesByDate().map((n) => ({ path: `/notes/${n.slug}`, lastUpdated: n.date })),
+    localities.map((l) => localitySlug(l.locality)),
   );
   return c.body(xml, 200, {
     "Content-Type": "application/xml; charset=UTF-8",
