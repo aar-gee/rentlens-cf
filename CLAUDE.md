@@ -20,7 +20,7 @@ A planned charter may not exist yet — skip it if absent. When a charter and th
 
 ## 1. What this project is
 
-- **Live product:** https://rentlens.fyi — a directory of housing societies in Pune with verified resident-reported rent ranges.
+- **Live product:** https://rentlens.fyi — a directory of housing societies in Bengaluru with verified resident-reported rent ranges. (City scope is Bengaluru today; a new city is a deliberate, ask-first expansion — see `DATA_AGENT.md` §7.)
 - **Stack:** Cloudflare Workers + Hono + `hono/jsx` (server-rendered, no client React) + D1 + Tailwind CDN-free build + Turnstile. TypeScript strict.
 - **No SPA, no client framework, no build step beyond Tailwind + Wrangler.** Every page is server-rendered HTML. Sprinkle minimal vanilla JS inline only when needed (e.g. Turnstile widget callback).
 - **Routes live in `src/routes/*`**, views in `src/views/*` as JSX components returning `c.html(...)`. Admin is mounted under a hidden prefix in `src/admin/*`.

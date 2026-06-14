@@ -26,9 +26,49 @@ All notable changes to RentLens are documented here. Format follows
   reads off provenance so estimates never read as resident-reported. The
   maintenance Q is omitted when a society's derived ₹/sq-ft is implausible
   (> ₹12), so we never publish a wrong figure into structured data.
+- 20 new societies (catalog 36 → 56) for nine builders that previously had zero
+  coverage despite being on the curated roster: Tata Housing, Birla Estates, L&T
+  Realty, Mahindra Lifespaces, Assetz Property Group, Sumadhura Group, Bhartiya
+  City, Century Real Estate, and Sterling Developers. All are completed,
+  occupied, ready-to-move communities (under-construction projects deliberately
+  excluded). Rents are asking-derived from current listings, so every new
+  society is `provenance='estimated'`. Adds 9 new localities — Banashankari,
+  Jalahalli, Arekere/Bannerghatta Road, Hebbal, Yeshwanthpur, Rachenahalli,
+  Hoodi, Yelahanka, Dasanapura — breaking the catalog out of the East/ORR
+  cluster (12 → 22 localities). Lodha stays uncovered: it is a 2024+ Bengaluru
+  entrant with no completed stock yet. Migration 0018; 43 sourced rent
+  observations land in `rent_observations`.
+- Round 2 of the same expansion (migration 0019): 42 more occupied societies
+  (catalog 56 → 98). Adds the five previously-zero-coverage tier-B builders —
+  Gopalan, Concorde, Casagrand, Provident, Shriram — and deepens the
+  under-represented tier-A builders (Prestige, Sobha, Brigade, Godrej,
+  Puravankara), all with completed, occupied stock only. After this, every
+  curated builder has catalog coverage except Lodha (no delivered Bengaluru
+  project yet). Localities grow 22 → 42, reaching Electronic City, JP Nagar,
+  Kanakapura Road, Rajajinagar, Hennur, Budigere, KR Puram and more; 91 sourced
+  rent observations added. Two ultra-luxury / serviced-leaning outliers (Bhartiya
+  Leela Residences, Embassy Lake Terraces) were deliberately held out so they
+  don't distort catalog medians.
 
 ### Fixed
 
+- Data-integrity corrections from an adversarial QA + audit pass over the new
+  expansion data and the original seed catalog (migration 0020 + regenerated
+  0018/0019):
+  - Concorde Silicon Valley re-typed as a villa/plotted township (its "2BHK
+    apartment" data was entirely conflated neighbouring societies); 2BHK row
+    dropped, 3BHK re-based on villas.
+  - Casagrand Royce 3BHK fixed (the seeded ₹38k was mis-scraped from a different
+    Hoodi society, Srimitra Symphony; corrected to ~₹50k).
+  - Gopalan Atlantis 3BHK (₹72k → ₹55k) and Century Saras (2BHK dropped, 3BHK
+    ₹32k → ₹28k) revised down; minor nudges to Tata New Haven, Purva Venezia,
+    Sobha Arena, Provident Sunworth.
+  - Original-seed locality fixes: Adarsh Park Heights (→ Gunjur), Prestige Misty
+    Waters (→ Hebbal), DivyaSree 77 Place (→ Yemalur), Salarpuria Sattva GreenAge
+    (→ Bommanahalli).
+  - Total Environment After the Rain: removed a fabricated ₹2L "3BHK" headline —
+    it is a 4BHK-villa-only project with no 3BHK (flagged for a keep/relabel/remove
+    decision).
 - Step 1 submit buttons no longer dead after returning from email verification.
   The verified-state "Use different" control and the pending-state inline
   code-entry form were each wrapped in their own `<form>` nested inside the
